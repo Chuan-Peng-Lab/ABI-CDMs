@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# R
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+
+# Checkpoints (download from OSF/Zenodo)
+checkpoints/
+
+# Output
+output/*.png
+output/*.svg
+output/*.pdf
+output/*.csv
+!output/.gitkeep
+
+# Data files (track only the raw data under data/; ignore generated data elsewhere)
+*.csv
+!data/**/*.csv
+*.pkl
+!data/**/*.pkl
+*.npy
+*.npz
+*.h5
+*.hdf5
+*.parquet
+*.feather
+*.mat
+
+# OS
+.DS_Store
+Thumbs.db
+*.lock
+~$*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment
+.venv/
+venv/
+env/

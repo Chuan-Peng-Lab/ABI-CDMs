@@ -1,0 +1,613 @@
+---
+title: "45 Parameter Consistency Analysis"
+author: "Wanke Pan"
+date: "`r Sys.Date()`"
+output:
+  html_notebook:
+    code_folding: hide
+    toc: true
+    toc_float: true
+    number_sections: true
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  fig.width  = 8,
+  fig.height = 6,
+  echo       = TRUE,
+  warning    = FALSE,
+  message    = FALSE,
+  collapse   = FALSE
+)
+
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(
+  dplyr, tidyr, stringr, purrr,
+  ggplot2, ggdist, patchwork,
+  brms, tidybayes,
+  psych,
+  knitr, kableExtra,
+  latex2exp,
+  svglite,
+  see
+)
+
+bruceR::set.wd()
+set.seed(20260323)
+
+theme_set(
+  theme_bw(base_size = 13) +
+    theme(
+      panel.grid.minor  = element_blank(),
+      plot.title        = element_text(face = "bold", hjust = 0.5),
+      axis.text         = element_text(color = "black"),
+      strip.background  = element_blank(),
+      strip.text        = element_text(face = "bold")
+    )
+)
+
+# --- Centralized Parameter Metadata ---
+# This table maps raw parameter names to their LaTeX labels and corresponding EFA factors.
+PARAM_CONFIG <- tibble::tribble(
+  ~model, ~param_raw, ~tex_label, ~efa_factor,
+  "DMC",  "$a|DMC$",        "$a$",        "Decision Caution",
+  "DMC",  "$t|DMC$",        "$t$",        "Non-decision time",
+  "DMC",  "$v_{c}|DMC$",    "$v_{c}$",    "Processing Efficiency",
+  "DMC",  "$\\alpha|DMC$",  "$\\alpha$",  "Inhibitory process",
+  "DMC",  "$\\eta|DMC$",    "$\\eta$",    "Inhibitory process",
+  "DMC",  "$\\tau|DMC$",    "$\\tau$",    "Inhibitory process",
+  
+  "DSTP", "$a|DSTP$",       "$a$",        "Decision Caution",
+  "DSTP", "$t|DSTP$",       "$t$",        "Non-decision time",
+  "DSTP", "$v_{ta}|DSTP$",  "$v_{ta}$",   "Processing Efficiency",
+  "DSTP", "$v_{fl}|DSTP$",  "$v_{fl}$",   "Inhibitory process",
+  "DSTP", "$v_{ss}|DSTP$",  "$v_{ss}$",   "Processing Efficiency",
+  "DSTP", "$v_{p2}|DSTP$",  "$v_{p2}$",   "Decision Caution",
+  "DSTP", "$a_{ss}|DSTP$",  "$a_{ss}$",   "Processing Efficiency",
+  
+  "SSP",  "$a|SSP$",        "$a$",        "Decision Caution",
+  "SSP",  "$t|SSP$",        "$t$",        "Non-decision time",
+  "SSP",  "$p|SSP$",        "$p$",        "Processing Efficiency",
+  "SSP",  "$r_d|SSP$",      "$r_d$",      "Processing Efficiency",
+  "SSP",  "$sd_a|SSP$",     "$sd_a$",     "Inhibitory process",
+  
+  "DDM",  "$a|DDM$",        "$a$",        "Decision Caution",
+  "DDM",  "$t|DDM$",        "$t$",        "Non-decision time",
+  "DDM",  "$v_{cong}|DDM$", "$v_{cong}$", "Processing Efficiency",
+  "DDM",  "$v_{incong}|DDM$","$v_{incong}$","Processing Efficiency"
+)
+
+# Target datasets for focused analysis
+TARGET_LABS <- c("clayson2025", "whitehead2019")
+
+# --- Visual Constants ---
+FACTOR_COLORS <- c(
+  "Processing Efficiency" = "#8491B4",    
+  "Decision Caution"      = "#3b6cb3",   
+  "Non-decision time"     = "#7E6148",  
+  "Inhibitory process"    = "#0099B4"  
+)
+
+CONSISTENCY_COLORS <- c(
+  "Matched"      = "#4CAF50", 
+  "Mismatched"   = "#8491B4", 
+  "Inconsistent" = "#9E9E9E"
+)
+
+# Shapes for different laboratories
+LAB_SHAPES <- c(
+  "Clayson2025"   = 0, "Eisenberg2019" = 1, "Hedge2018" = 2,
+  "Kucina2023"    = 5, "Reymermet2018" = 16, "Ulrich2015" = 17,
+  "Whitehead2019" = 18
+)
+
+# --- Refactored Helper Functions ---
+
+#' Add parameter metadata (factor, tex) to a dataframe
+#' @param df A dataframe containing a `param` column
+add_param_metadata <- function(df) {
+  # Determine join columns: if 'model' already exists, join by both param and model to avoid duplication
+  join_cols <- if ("model" %in% names(df)) {
+    c("param" = "param_raw", "model")
+  } else {
+    c("param" = "param_raw")
+  }
+  
+  df %>% left_join(PARAM_CONFIG, by = join_cols)
+}
+
+#' Standardize author_year grouping (Defining dominant models for labs)
+#' @param df A dataframe with author_year column
+add_model_grouping <- function(df) {
+  df %>%
+    mutate(
+      group_winning_model = if_else(
+        author_year %in% c("clayson2025", "ulrich2015"), "DMC", "DSTP"
+      )
+    )
+}
+
+#' Generic ICC calculator handling missingness
+#' @param df_sub Data subset for a specific group
+#' @param use_lmer Logical, whether to use mixed-effects model for unbalanced designs
+compute_icc_core <- function(df_sub, use_lmer = FALSE) {
+  # Minimum requirements: 2 tasks, 10 subjects
+  n_tasks <- n_distinct(df_sub$task_name)
+  n_subj  <- n_distinct(df_sub$subject_id)
+  
+  if (n_tasks < 2 || n_subj < 10) return(tibble(overall_icc = NA_real_, ci_lower = NA_real_, ci_upper = NA_real_))
+
+  # Pivot to wide for psych::ICC
+  mat <- df_sub %>%
+    select(subject_id, task_name, value) %>%
+    pivot_wider(names_from = task_name, values_from = value) %>%
+    select(-subject_id)
+
+  if (!use_lmer) {
+    # Listwise deletion for standard ICC
+    mat <- mat[complete.cases(mat), , drop = FALSE]
+    if (nrow(mat) < 5) return(tibble(overall_icc = NA_real_, ci_lower = NA_real_, ci_upper = NA_real_))
+  }
+
+  # ICC(2,1): two-way random effects, single measure (absolute agreement)
+  res <- tryCatch(psych::ICC(mat, lmer = use_lmer), error = function(e) NULL)
+  if (is.null(res)) return(tibble(overall_icc = NA_real_, ci_lower = NA_real_, ci_upper = NA_real_))
+
+  icc_row <- res$results[res$results$type == "ICC2", ]
+  tibble(overall_icc = icc_row$ICC, ci_lower = icc_row$`lower bound`, ci_upper = icc_row$`upper bound`)
+}
+```
+
+
+# Data Loading and Preprocessing
+
+In this section, we load the subject-level parameter estimates and the model prediction indices (RMSE). We identify the "winner" model for each subject and task based on minimum RMSE. We then determine cross-task consistency: whether a subject is best-fitted by the same model across all tasks they performed within a lab.
+
+```{r load-data}
+# Load indices and RMSE data
+df_raw  <- read.csv("./43_subj_indices_with_EFA_scores.csv", check.names = FALSE)
+df_rmse <- read.csv("./23model_prediction_indices.csv", check.names = FALSE) %>%
+  mutate(across(c(author_year, task_name), tolower))
+
+# 1.1 Identify the winning model per subject x task (minimum RMSE)
+df_winner_consistency <- df_rmse %>%
+  group_by(subject_id, author_year, task_name) %>%
+  slice_min(order_by = RMSE, n = 1, with_ties = FALSE) %>%
+  ungroup() %>%
+  select(subject_id, author_year, task_name, winner_model = model) %>%
+  # 1.2 Calculate cross-task winner consistency per subject within a lab
+  left_join(
+    df_rmse %>%
+      group_by(subject_id, author_year, task_name) %>%
+      slice_min(order_by = RMSE, n = 1, with_ties = FALSE) %>%
+      group_by(subject_id, author_year) %>%
+      summarise(
+        is_consistent    = n_distinct(model) == 1,
+        consistent_model = if_else(is_consistent, first(model), NA_character_),
+        .groups = "drop"
+      ),
+    by = c("subject_id", "author_year")
+  )
+
+# Reshape parameters to long format and merge with metadata/consistency info
+df_params_long <- df_raw %>%
+  select(subject_id, author_year, task_id, task_name, any_of(PARAM_CONFIG$param_raw)) %>%
+  pivot_longer(cols = any_of(PARAM_CONFIG$param_raw), names_to = "param", values_to = "value") %>%
+  filter(!is.na(value)) %>%
+  add_param_metadata() %>%
+  add_model_grouping() %>%
+  left_join(df_winner_consistency, by = c("subject_id", "author_year", "task_name"))
+
+glimpse(df_params_long)
+```
+
+# ICC Analysis
+
+We quantify parameter stability using the Intraclass Correlation Coefficient (ICC). A higher ICC indicates that the ranking of individuals on a specific parameter is consistent across different tasks, suggesting that the parameter captures a stable cognitive trait.
+
+1.  **Overall ICC**: Calculated for each parameter within each lab and model.
+2.  **Stratified ICC**: Calculated separately for groups of subjects based on their best-fit model consistency (Matched, Mismatched, Inconsistent).
+3.  **Pooled ICC**: A global estimate of parameter stability by pooling all labs, using mixed-effects models to handle the unbalanced task structure.
+
+```{r compute-icc-main, cache=TRUE}
+# 3.1 Overall ICC calculation
+param_icc_summary <- df_params_long %>%
+  group_by(author_year, model, param) %>%
+  group_modify(~ compute_icc_core(.x)) %>%
+  ungroup() %>% 
+  add_param_metadata() %>%
+  add_model_grouping()
+
+# 3.2 Consistency-stratified ICC analysis function
+analyze_consistency_icc <- function(df, target_model) {
+  df %>%
+    filter(model == target_model) %>%
+    mutate(consistency_group = case_when(
+      consistent_model == target_model ~ "Matched",
+      !is.na(consistent_model) ~ "Mismatched",
+      TRUE ~ "Inconsistent"
+    )) %>%
+    group_by(author_year, param, consistency_group) %>% 
+    group_modify(~ compute_icc_core(.x)) %>%
+    ungroup() %>%
+    rename(lab = author_year) %>%
+    mutate(consistency_group = factor(consistency_group, levels = names(CONSISTENCY_COLORS)))
+}
+
+# Run stratified analysis for each model
+icc_stratified <- PARAM_CONFIG$model %>% 
+  unique() %>% 
+  set_names() %>% 
+  map(~ analyze_consistency_icc(df_params_long, .x))
+
+# 3.3 Pooled ICC across labs using mixed models
+compute_pooled_icc <- function(df) {
+  df %>%
+    mutate(global_subj_id = paste(author_year, subject_id, sep = "_"),
+           consistency_group = factor(case_when(
+             consistent_model == model ~ "Matched",
+             !is.na(consistent_model) ~ "Mismatched",
+             TRUE ~ "Inconsistent"
+           ), levels = names(CONSISTENCY_COLORS))) %>%
+    rename(subject_id_orig = subject_id, subject_id = global_subj_id) %>% # Swap to satisfy compute_icc_core signature
+    group_by(model, param, consistency_group) %>% 
+    group_modify(~ compute_icc_core(.x, use_lmer = TRUE)) %>%
+    ungroup() %>%
+    add_param_metadata()
+}
+
+icc_pooled_summary <- compute_pooled_icc(df_params_long)
+```
+
+
+# Visualizations
+
+```{r viz-helpers}
+#' Build LaTeX labels for ggplot axis
+build_tex_labels <- function(param_levels) {
+  config_subset <- PARAM_CONFIG %>% filter(param_raw %in% param_levels)
+  labels <- setNames(config_subset$tex_label, config_subset$param_raw)
+  latex2exp::TeX(labels[as.character(param_levels)])
+}
+
+#' Unified plotting function for consistency-stratified ICC
+#' @param df_icc Dataframe with ICC results
+#' @param model_name Title/Label for the model
+#' @param show_labs Logical, whether to overlay individual lab points
+plot_icc_stratified <- function(df_icc, model_name, show_labs = FALSE) {
+  df_plot <- df_icc %>%
+    filter(!is.na(overall_icc), overall_icc > -0.1) %>%
+    mutate(
+      lab = str_to_title(lab),
+      overall_icc = pmax(overall_icc, 0),
+      ci_lower = pmax(ci_lower, 0),
+      ci_upper = pmax(ci_upper, 0),
+      param = factor(param),
+      cg_num = as.numeric(consistency_group),
+      param_num = as.numeric(param),
+      x_pos = param_num + (cg_num - 2) * (0.8 / 3)
+    )
+
+  df_summary <- df_plot %>%
+    group_by(param, param_num, consistency_group, cg_num) %>%
+    summarise(mean_icc = mean(overall_icc), 
+              se_icc = if_else(n() > 1, sd(overall_icc)/sqrt(n()), 0),
+              # If pooled data (1 row per group), use CI from model directly
+              ci_l = if_else(n() == 1, first(ci_lower), mean_icc - se_icc),
+              ci_u = if_else(n() == 1, first(ci_upper), mean_icc + se_icc),
+              .groups = "drop") %>%
+    mutate(x_pos = param_num + (cg_num - 2) * (0.8 / 3))
+
+  p <- ggplot() +
+    geom_col(data = df_summary, aes(x = x_pos, y = mean_icc, fill = consistency_group),
+             width = 0.8/3, color = "black", alpha = 0.7) +
+    geom_errorbar(data = df_summary, aes(x = x_pos, ymin = ci_l, ymax = ci_u),
+                  width = 0.1, linewidth = 0.6) +
+    scale_x_continuous(breaks = seq_along(levels(df_plot$param)), 
+                       labels = build_tex_labels(levels(df_plot$param))) +
+    scale_fill_manual(values = CONSISTENCY_COLORS) +
+    labs(x = model_name, y = expression("ICC"["(2,1)"]), fill = "Consistency") +
+    see::theme_modern(base_size = 14)
+
+  if (show_labs) {
+    p <- p + geom_point(data = df_plot, aes(x = x_pos, y = overall_icc, shape = lab),
+                        size = 2, alpha = 0.8, position = position_nudge(x = 0)) +
+             scale_shape_manual(values = LAB_SHAPES)
+  }
+  return(p)
+}
+```
+
+## Cross-task ICC across Optimal Models and Labs
+
+**Objective**: To evaluate whether being the "optimal" (winning) model for a laboratory translates into higher parameter stability (ICC).
+
+**Methods**: We compare parameter ICCs for DMC and DSTP across all labs. Color encodes the EFA factor, shape distinguishes labs, and linetype indicates whether the model is the "winner" for that specific lab.
+
+**Interpretation**: 
+1.  **Decoupling of Fit and Stability**: High model-level consistency (e.g., in Whitehead 2019) does not necessarily imply high parameter stability.
+2.  **Negligible Winning Model Effect**: Parameters of the "winning" model for a lab (solid lines) do not show systematically higher ICCs than non-winning models.
+3.  **Lab Dominance**: ICC performance is more strongly clustered by laboratory than by model or parameter type, suggesting that data collection protocols or sample characteristics are primary drivers of reliability.
+
+```{r plot-param-icc-dot, fig.width=10, fig.height=10}
+p_dot_data <- param_icc_summary %>%
+  filter(!is.na(overall_icc), author_year != "lee2025", model %in% c("DMC","DSTP")) %>%
+  mutate(
+    param = factor(param, levels = rev(unique(param))),
+    param_factor = factor(efa_factor, levels = names(FACTOR_COLORS)),
+    is_winning = factor(model == group_winning_model, levels = c(TRUE, FALSE)),
+    highlight = factor(if_else(author_year %in% TARGET_LABS, "High", "Normal"), levels = c("Normal", "High")),
+    author_year_label = str_to_title(author_year)
+  )
+
+p_dot <- ggplot(p_dot_data, aes(
+    x = overall_icc, 
+    y = param, 
+    color = param_factor, 
+    linetype = is_winning, 
+    shape = author_year_label,
+    linewidth = highlight,          # Move linewidth to global mapping
+    group = author_year_label       # Grouping ensures points and error bars dodge together
+  )) +
+  # inherit.aes = FALSE avoids shape/linewidth mapping errors for vlines
+  geom_vline(xintercept = 0, linetype = "dashed", color = "grey60", inherit.aes = FALSE) +
+  geom_vline(xintercept = c(0.5, 0.75), linetype = "dotted", color = "grey75", inherit.aes = FALSE) +
+  
+  geom_errorbar(aes(xmin = ci_lower, xmax = ci_upper),
+                width = 0.2, position = position_dodge(width = 0.6)) +
+  geom_point(position = position_dodge(width = 0.6), size = 2) +
+  
+  facet_wrap(~model, scales = "free_y") +
+  scale_color_manual(values = FACTOR_COLORS, name = "EFA Factor") +
+  scale_linetype_manual(values = c("TRUE" = "solid", "FALSE" = "dashed"), name = "Winning Model") +
+  scale_linewidth_manual(values = c("Normal" = 0.5, "High" = 1), guide = "none") +
+  scale_shape_manual(values = LAB_SHAPES, name = "Lab") +
+  # scales::squish keeps CIs within visible bounds
+  scale_x_continuous(limits = c(-0.2, 1), breaks = seq(0, 1, 0.25), oob = scales::squish) +
+  scale_y_discrete(labels = build_tex_labels(levels(p_dot_data$param))) +
+  labs(x = "Cross-task ICC(2,1) [95% CI]", y = NULL) +
+  theme(legend.position = "right", axis.text.y = element_text(size = 12))
+
+ggsave("../figs/45_param_icc_dot.svg", p_dot, width = 10, height = 8)
+p_dot
+```
+
+
+## Consistency-stratified ICC (Pooled across all labs)
+
+**Objective**: To provide a robust, large-scale estimate of parameter stability by pooling all available data.
+
+**Methods**: Labs are pooled into a single dataset. ICC(2,1) is estimated using mixed-effects models (treating subjects as targets and tasks as nested raters) to accommodate subjects who only performed a subset of tasks.
+
+**Interpretation**: This provides the "final word" on which parameters/factors (e.g., Decision Caution vs. Inhibitory Processes) are most reliable globally. Non-decision time ($t$) and Decision Caution ($a$) typically show higher stability compared to rate-based parameters.
+
+```{r plot-stratified-pooled, fig.width=12, fig.height=8}
+# Map over all models to generate pooled bar plots
+p_pooled_list <- unique(PARAM_CONFIG$model) %>%
+  map(~ plot_icc_stratified(icc_pooled_summary %>% filter(model == .x) %>% mutate(lab = model), .x))
+
+p_pooled_combined <- wrap_plots(p_pooled_list, ncol = 2) + 
+  plot_layout(guides = "collect") + 
+  plot_annotation(tag_levels = "A")
+
+ggsave("../figs/45_param_icc_pool.svg", p_pooled_combined, width = 12, height = 8)
+p_pooled_combined
+```
+
+
+## Consistency-stratified ICC (Lab-level)
+
+**Objective**: To determine if subjects who are *consistently* best-fitted by a model (Matched group) exhibit more stable parameter estimates within that model.
+**Methods**: Subjects are grouped by their winner-model consistency. ICCs are computed for each parameter across these groups. Individual lab estimates are overlaid as points on mean bars.
+**Interpretation**: Observe the bar heights across "Matched" (green) vs. others. If the Matched group shows higher bars, it suggests that parameter reliability is conditional on finding the "correct" model for an individual.
+
+Note: because there is not enough samples in SSP and DDM which can performence well aross tasks, so we only visualize the results from DMC and DSTP. 
+
+```{r plot-stratified-labs, fig.width=13, fig.height=5}
+# Visualize primary models with lab-level points
+p_dmc_labs  <- plot_icc_stratified(icc_stratified$DMC, "DMC", show_labs = TRUE)
+p_dstp_labs <- plot_icc_stratified(icc_stratified$DSTP, "DSTP", show_labs = TRUE)
+
+p_strat_labs_combined <- (p_dmc_labs + p_dstp_labs) + 
+  plot_layout(guides = "collect") + 
+  plot_annotation(tag_levels = "A")
+
+ggsave("../figs/45_param_icc_labs.svg", p_strat_labs_combined, width = 13, height = 5)
+p_strat_labs_combined
+```
+
+# Cross-temoproal analysis
+
+```{r data-prep-retest, message=FALSE, warning=FALSE}
+# 1. Load existing indices and RMSE data
+df_raw_retest  <- read.csv("./43_subj_indices_with_EFA_scores_retest.csv", check.names = FALSE)
+df_rmse_retest <- read.csv("./23model_prediction_indices_retest.csv", check.names = FALSE) %>%
+  mutate(across(c(author_year, task_name), tolower))
+
+# 2. Target specific datasets with retest sessions (e.g., Hedge 2018)
+RETEST_LABS <- c("hedge2018", "eisenberg2019","clayson2024", "lee2025") # You can add "kucina2023" if it contains session data
+
+# 3. Identify the winning model per session and calculate RAP (Relative Agreement Proportions)
+# Supporting studies with multiple measurements (3-10 sessions)
+df_win_counts <- df_rmse_retest %>%
+  filter(author_year %in% RETEST_LABS) %>%
+  group_by(subject_id, author_year, task_name, session_id) %>%
+  slice_min(order_by = RMSE, n = 1, with_ties = FALSE) %>% 
+  group_by(subject_id, author_year, task_name) %>%
+  mutate(total_sessions = n_distinct(session_id)) %>%
+  group_by(subject_id, author_year, task_name, model, total_sessions) %>%
+  summarise(win_count = n(), .groups = "drop") %>%
+  mutate(RAP = win_count / total_sessions)
+
+# 4. Determine consistency group based on RAP threshold
+df_consistency_retest <- df_win_counts %>%
+  group_by(subject_id, author_year, task_name) %>%
+  # Select the model with the highest win rate (RAP)
+  slice_max(order_by = RAP, n = 1, with_ties = FALSE) %>%
+  ungroup() %>%
+  mutate(
+    # Following the logic in script 41: Consistent if a model wins in >= 70% of sessions
+    is_consistent = RAP >= 0.7,
+    consistent_model = if_else(is_consistent, model, "Inconsistent")
+  ) %>%
+  select(subject_id, author_year, task_name, consistent_model, max_RAP = RAP)
+
+# 5. Update df_analysis_retest with RAP-based consistency labels
+df_analysis_retest <- df_raw_retest %>%
+  filter(author_year %in% RETEST_LABS) %>%
+  select(subject_id, author_year, task_name, session_id, any_of(PARAM_CONFIG$param_raw)) %>%
+  pivot_longer(cols = any_of(PARAM_CONFIG$param_raw), names_to = "param", values_to = "value") %>%
+  filter(!is.na(value)) %>%
+  add_param_metadata() %>%
+  inner_join(
+    df_consistency_retest,
+    by = c("subject_id", "author_year", "task_name")
+  ) %>%
+  mutate(consistency_group = case_when(
+    consistent_model == model ~ "Matched",
+    consistent_model == "Inconsistent" ~ "Inconsistent",
+    TRUE ~ "Mismatched"
+  ))
+
+glimpse(df_analysis_retest)
+```
+
+```{r calc-stratified-icc, message=FALSE, warning=FALSE}
+# ==============================================================================
+# Objective: Calculate Test-Retest ICC(3,1) stratified by consistency group
+# ==============================================================================
+
+# ==============================================================================
+# Wrapper function to calculate retest ICC with an option to pool across labs
+# ==============================================================================
+run_retest_icc_analysis <- function(df_data, pool_authors = FALSE) {
+  
+  # 1. Prevent subject_id collisions across different studies
+  # Create a globally unique ID by combining author_year and subject_id
+  df_processed <- df_data %>%
+    mutate(global_subject_id = paste(author_year, subject_id, sep = "_")) %>%
+    # Overwrite subject_id so compute_retest_icc uses the unique one
+    mutate(subject_id = global_subject_id)
+  
+  # 2. Dynamically define grouping variables based on the pool parameter
+  if (pool_authors) {
+    # Exclude author_year to pool all subjects across studies into one large group
+    group_vars <- c("task_name", "model", "param", "consistency_group")
+  } else {
+    # Include author_year to calculate ICC separately for each study
+    group_vars <- c("author_year", "task_name", "model", "param", "consistency_group")
+  }
+  
+  # 3. Execute the pipeline
+  df_result <- df_processed %>%
+    group_by(across(all_of(group_vars))) %>%
+    group_modify(~ compute_retest_icc(.x)) %>%
+    ungroup() %>%
+    mutate(
+      consistency_group = factor(
+        consistency_group, 
+        levels = c("Matched", "Mismatched", "Inconsistent")
+      )
+    ) %>% 
+    mutate(across(where(is.numeric), ~ round(.x, digits = 3)))
+  
+  return(df_result)
+}
+
+
+# Option A: Calculate separately for each lab (Unpooled)
+icc_retest_separate <- run_retest_icc_analysis(df_analysis_retest, pool_authors = FALSE)
+# Option B: Calculate pooled ICC across all labs (Pooled)
+icc_retest_pooled <- run_retest_icc_analysis(df_analysis_retest, pool_authors = TRUE)
+```
+
+```{r plot-retest-consistency, fig.width=14, fig.height=10}
+# ==============================================================================
+# Objective: Visualize Pooled Retest ICC by Consistency Group
+# Dependencies: ggplot2, dplyr, patchwork, stringr, latex2exp
+# ==============================================================================
+
+# Simplified Plotting Function (Returns only the ICC plot)
+plot_icc_retest <- function(df_icc, target_task) {
+  
+  df_plot <- df_icc %>%
+    filter(task_name == target_task) %>%
+    mutate(
+      consistency_group = factor(
+        consistency_group, 
+        levels = c("Matched", "Mismatched", "Inconsistent")
+      ),
+      param_clean = str_extract(param, "^[^|]+")
+    ) %>%
+    filter(!is.na(overall_icc))
+
+  p_icc <- ggplot(df_plot, aes(x = overall_icc, y = param_clean, color = consistency_group)) +
+    # Reference lines
+    geom_vline(xintercept = 0, linetype = "solid", color = "gray80") +
+    geom_vline(xintercept = c(0.5, 0.75), linetype = "dashed", color = "gray70") +
+    
+    # ICC points and 95% CI
+    geom_pointrange(
+      aes(xmin = ci_lower, xmax = ci_upper),
+      position = position_dodge(width = 0.6),
+      size = 0.7,
+      linewidth = 1
+    ) +
+    
+    # Facet by model
+    facet_wrap(~ model, scales = "free_y", ncol = 1) +
+    scale_color_manual(values = CONSISTENCY_COLORS) +
+    
+    # LaTeX formatting and scales
+    scale_y_discrete(labels = function(x) unname(TeX(x))) +
+    scale_x_continuous(limits = c(-0.1, 1), breaks = seq(0, 1, 0.25)) +
+    
+    labs(
+      title = str_to_title(target_task), # Use task name as subplot title
+      x = expression("ICC"["(2,1)"] ~ " [95% CI]"),
+      y = "", 
+      color = "Consistency Group"
+    ) +
+    theme_bw(base_size = 14) +
+    theme(
+      strip.background = element_rect(fill = "#f0f0f0", color = "black"),
+      strip.text = element_text(face = "bold", size = 12),
+      panel.grid.minor = element_blank(),
+      plot.title = element_text(hjust = 0.5, face = "bold")
+    )
+  
+  return(p_icc)
+}
+
+# ==============================================================================
+# 2. Generate and Combine Plots for Three Tasks
+# ==============================================================================
+# Assuming your three tasks are "flanker", "simon", and "stroop" (adjust names as needed)
+icc_retest_pooled = icc_retest_pooled %>% filter(model %in% c("DMC", "DSTP"))
+p_task1 <- plot_icc_retest(icc_retest_pooled, "flanker")
+p_task2 <- plot_icc_retest(icc_retest_pooled, "simon")
+p_task3 <- plot_icc_retest(icc_retest_pooled, "stroop") # Replace with your actual 3rd task name
+
+# Combine using patchwork
+# Use "|" for horizontal layout, collect guides to avoid duplicate legends
+p_combined_tasks <- (p_task1 | p_task2 | p_task3) +
+  plot_layout(guides = "collect")
+  # plot_annotation(tag_levels = "A")
+  # plot_annotation(
+  #   title = "Impact of Fitting Consistency on Retest Reliability Across Tasks",
+  #   theme = theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 16))
+  # ) &
+  # theme(legend.position = "bottom")
+
+# ggsave("../figs/45_retest_icc_combined_tasks.svg", p_combined_tasks, width = 14, height = 8)
+
+p_combined_tasks
+```
+
+
+# Session Info
+
+```{r session-info}
+sessionInfo()
+```
