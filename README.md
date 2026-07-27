@@ -307,13 +307,9 @@ python scripts/08_supplementary/33_model_metric_supplement.py
 
 | Figure | Description | Script | Output |
 |--------|-------------|--------|--------|
-| **Fig 1** | Task & model overview schematic | PPT (manual) | — |
 | **Fig 2** | Model comparison, cross-task consistency, retest consistency | `scripts/05_model_comparison/32fig2_v8_combined.py` | `output/fig2.{svg,png}` |
 | **Fig 3** | Posterior predictive checks (CAF + Delta) | `scripts/06_ppc/24plot_ppc_fig3.py` | `output/fig3.{svg,png}` |
 | **Fig 4** | EFA, reliability, and factor space | `scripts/07_parameter_analysis/44fig4_efa_svg.py` | `output/fig4.{svg,png}` |
-| **S1** | RMSE scaling sensitivity | `scripts/08_supplementary/33_rmse_scaling_sensitivity_plot.py` | `output/S_rmse_scaling_sensitivity.{svg,png}` |
-| **S2** | PPC component metrics | `scripts/08_supplementary/33_ppc_component_metrics.py` | `output/S_ppc_component_metrics.{svg,png}` |
-| **S3** | Multi-criterion model comparison | `scripts/08_supplementary/33_model_metric_supplement.py` | `output/S_model_metrics.{svg,png}` |
 
 ---
 

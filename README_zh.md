@@ -160,13 +160,9 @@ python scripts/08_supplementary/33_model_metric_supplement.py
 
 | 图表 | 说明 | 生成脚本 |
 |------|------|---------|
-| **Fig 1** | 任务与模型概览示意图 | PPT 手动制作 |
 | **Fig 2** | 模型比较、跨任务一致性、重测一致性 | `scripts/05_model_comparison/32fig2_v8_combined.py` |
 | **Fig 3** | 后验预测检查 (CAF + Delta) | `scripts/06_ppc/24plot_ppc_fig3.py` |
 | **Fig 4** | 探索性因子分析、信度、因子空间 | `scripts/07_parameter_analysis/44fig4_efa_svg.py` |
-| **S1** | RMSE 敏感性分析 | `scripts/08_supplementary/33_rmse_scaling_sensitivity_plot.py` |
-| **S2** | PPC 分量指标 | `scripts/08_supplementary/33_ppc_component_metrics.py` |
-| **S3** | 多准则模型比较 | `scripts/08_supplementary/33_model_metric_supplement.py` |
 
 ---
 
