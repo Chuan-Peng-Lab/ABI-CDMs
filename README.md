@@ -56,7 +56,7 @@ ABI-CDMs/
 │   │   ├── 23individual_analysis_preprocess.py
 │   │   └── 23individual_analysis_preprocess_dmc_v2.py
 │   ├── 04_validation/                 # Parameter & model recovery
-��   │   ├── 11parameter_recovery.py
+│   │   ├── 11parameter_recovery.py
 │   │   ├── 12parameter_mapping.py
 │   │   └── 13model_recovery.py
 │   ├── 05_model_comparison/           # Model comparison (manuscript Fig 2)

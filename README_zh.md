@@ -20,7 +20,7 @@ ABI-CDMs/
 ├── README.md                          # 英文说明
 ├── README_zh.md                       # 本文件（中文说明）
 ├── LICENSE                            # AGPL v3 许可证
-├─�� requirements.txt                   # Python 依赖
+├── requirements.txt                   # Python 依赖
 ├── environment.yml                    # Conda 环境配置（推荐）
 ├── setup.py                           # 安装脚本
 ├── nsbi_module/                       # 核心库（可 pip install -e .）
