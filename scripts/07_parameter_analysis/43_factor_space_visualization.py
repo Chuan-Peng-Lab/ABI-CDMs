@@ -64,8 +64,10 @@ LABEL_FONTSIZE = 14
 TICK_FONTSIZE  = 11
 LEGEND_FONTSIZE = 9
 
-get_ipython().run_line_magic('load_ext', 'autoreload')
-get_ipython().run_line_magic('autoreload', '2')
+ipython = globals().get("get_ipython")
+if ipython:
+    ipython.run_line_magic("load_ext", "autoreload")
+    ipython.run_line_magic("autoreload", "2")
 
 
 # ## 2. Load Data

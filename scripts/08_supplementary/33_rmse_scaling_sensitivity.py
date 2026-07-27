@@ -46,8 +46,8 @@ sns.set_style("white")
 # ---------------------------------------------------------------------------
 # 0. Constants
 # ---------------------------------------------------------------------------
-STORE_DATASETS_PATH = "21preprocessed_datasets.h5"
-STORE_FITS_PATH = "22fitting_and_prediction.h5"
+STORE_DATASETS_PATH = "../03_fitting/21preprocessed_datasets.h5"
+STORE_FITS_PATH = "../03_fitting/22fitting_and_prediction.h5"
 CAF_SCALE_BASES = [0, 125, 250, 375, 500, 750, 1000]
 MAP_NPARAMS = {"DDM": 4, "DMC": 5, "SSP": 6, "DSTP": 7}
 MODELS_MAIN = ["DSTP", "DMC", "SSP", "DDM"]

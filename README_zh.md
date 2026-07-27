@@ -93,7 +93,7 @@ pacman::p_load(brms, tidybayes, posterior)
 
 **DOI**: [10.5281/zenodo.21623907](https://doi.org/10.5281/zenodo.21623907)
 
-下载 `checkpoints_ABI-CDMs.zip`（93.6 MB）并解压到仓库根目录。解压后 `checkpoints/` 结构为：
+下载 `checkpoints_ABI-CDMs.zip`（93.6 MB）并解压到 `checkpoints/` 目录。解压后 `checkpoints/` 结构为：
 ```
 checkpoints/
 ├── DDM/          # DDM 模型权重 (24 MB)
@@ -107,13 +107,15 @@ checkpoints/
 
 ## 复现论文结果
 
-所有脚本应从仓库根目录运行。
+脚本使用 CWD 相对路径。**每步需先 `cd` 到对应 `scripts/XX_*/` 子目录后运行**（Step 2 训练脚本也可从仓库根目录运行）。
 
 ### 完整流程
 
 ```bash
 # Step 1: 数据预处理
-python scripts/01_preprocessing/21datasets_preprocessing.py
+cd scripts/01_preprocessing
+python 21datasets_preprocessing.py
+cd ../..
 
 # Step 2: 模型训练（如使用预训练权重可跳过）
 python scripts/02_training/DDM_training.py
@@ -129,16 +131,22 @@ python 23individual_analysis_preprocess.py
 cd ../..
 
 # Step 4: 验证
-python scripts/04_validation/11parameter_recovery.py
-python scripts/04_validation/13model_recovery.py
+cd scripts/04_validation
+python 11parameter_recovery.py
+python 13model_recovery.py
+cd ../..
 
 # Step 5: 模型比较 → Fig 2
-python scripts/05_model_comparison/31prediciontion_comparison_RMSE.py
-python scripts/05_model_comparison/32fig2_v8_combined.py
+cd scripts/05_model_comparison
+python 31prediciontion_comparison_RMSE.py
+python 32fig2_v8_combined.py
+cd ../..
 
 # Step 6: 后验预测检查 → Fig 3
-python scripts/06_ppc/24PPC.py
-python scripts/06_ppc/24plot_ppc_fig3.py
+cd scripts/06_ppc
+python 24PPC.py
+python 24plot_ppc_fig3.py
+cd ../..
 
 # Step 7: 因子分析 → Fig 4
 cd scripts/07_parameter_analysis
@@ -149,9 +157,12 @@ python 44fig4_efa_svg.py
 cd ../..
 
 # Step 8: 补充材料
-python scripts/08_supplementary/33_rmse_scaling_sensitivity.py
-python scripts/08_supplementary/33_ppc_component_metrics.py
-python scripts/08_supplementary/33_model_metric_supplement.py
+cd scripts/08_supplementary
+python 33_rmse_scaling_sensitivity.py
+python 33_rmse_scaling_sensitivity_plot.py
+python 33_ppc_component_metrics.py
+python 33_model_metric_supplement.py
+cd ../..
 ```
 
 ---

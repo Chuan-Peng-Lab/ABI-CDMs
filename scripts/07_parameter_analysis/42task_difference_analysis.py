@@ -23,8 +23,10 @@ from nsbi_module.utils_ind_diff import *
 
 sns.set_style("white")
 
-get_ipython().run_line_magic('load_ext', 'autoreload')
-get_ipython().run_line_magic('autoreload', '2')
+ipython = globals().get("get_ipython")
+if ipython:
+    ipython.run_line_magic("load_ext", "autoreload")
+    ipython.run_line_magic("autoreload", "2")
 
 
 # In[2]:

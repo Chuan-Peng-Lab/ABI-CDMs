@@ -447,7 +447,7 @@ stats_df.groupby("task_name")[["n_subj","total_trials"]].sum()
 # In[10]:
 
 
-with pd.HDFStore("./21preprocessed_datasets.h5") as store:
+with pd.HDFStore("../03_fitting/21preprocessed_datasets.h5") as store:
     for key, df in author_year_task_df_dict.items():
         store.put(key, df)
 
@@ -539,7 +539,7 @@ stats_df
 
 tmp_author_year_task_df_dict["meta_data"] = stats_df
 
-with pd.HDFStore("./21preprocessed_datasets_retest.h5") as store:
+with pd.HDFStore("../03_fitting/21preprocessed_datasets_retest.h5") as store:
     for key, df in tmp_author_year_task_df_dict.items():
         store.put(key, df)
 

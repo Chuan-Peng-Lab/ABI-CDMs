@@ -16,8 +16,10 @@ from nsbi_module.model_metrics import ModelMetricEvaluator
 from nsbi_module.NSBI_CDMs import NSBICDM, NSBICDMs
 from nsbi_module.utils import timer, cache_from_file
 
-get_ipython().run_line_magic('load_ext', 'autoreload')
-get_ipython().run_line_magic('autoreload', '2')
+ipython = globals().get("get_ipython")
+if ipython:
+    ipython.run_line_magic("load_ext", "autoreload")
+    ipython.run_line_magic("autoreload", "2")
 
 
 # In[2]:

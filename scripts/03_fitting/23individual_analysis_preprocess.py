@@ -14,8 +14,10 @@ from nsbi_module.utils import timer, FitStore, cache_from_file
 from nsbi_module.model_metrics import ModelMetricEvaluator
 from nsbi_module.default_settings import PARAMS_KEY_NAME_MAPPING
 
-get_ipython().run_line_magic('load_ext', 'autoreload')
-get_ipython().run_line_magic('autoreload', '2')
+ipython = globals().get("get_ipython")
+if ipython:
+    ipython.run_line_magic("load_ext", "autoreload")
+    ipython.run_line_magic("autoreload", "2")
 
 
 # ## helper functions

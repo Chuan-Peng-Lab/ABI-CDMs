@@ -7,7 +7,7 @@ pandas>=2.0
 scipy>=1.10
 
 # Deep learning & neural networks
-bayesflow>=2.0
+bayesflow~=2.0.7
 torch>=2.0
 keras>=3.0
 
@@ -30,6 +30,7 @@ rsatoolbox>=0.3
 
 # Statistics
 statsmodels>=0.14
+pingouin>=0.5
 
 # Utilities
 tqdm>=4.65

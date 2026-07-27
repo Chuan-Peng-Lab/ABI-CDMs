@@ -110,6 +110,8 @@ ABI-CDMs/
 - **Python**: 3.10–3.12
 - **R**: 4.0+ (for factor analysis & Bayesian modeling)
 - **GPU**: Optional — training benefits from CUDA-capable GPU, but inference works on CPU
+- **R**: On Windows, `brms` requires **Rtools** (C/C++ compiler toolchain). Download from [cran.r-project.org](https://cran.r-project.org/bin/windows/Rtools/).
+- **Keras backend**: If both TensorFlow and PyTorch are installed, set `KERAS_BACKEND=torch` before running scripts to ensure BayesFlow uses the PyTorch backend.
 - **Disk**: ~2 GB for checkpoints, ~50 MB for data
 
 ---
@@ -185,7 +187,7 @@ Pre-trained model weights are available on Zenodo:
 
 **DOI**: [10.5281/zenodo.21623907](https://doi.org/10.5281/zenodo.21623907)
 
-Download `checkpoints_ABI-CDMs.zip` (93.6 MB) and extract into this repository's root directory. After extraction, `checkpoints/` should contain:
+Download `checkpoints_ABI-CDMs.zip` (93.6 MB) and extract into the `checkpoints/` directory. After extraction, `checkpoints/` should contain:
 ```
 checkpoints/
 ├── DDM/          # DDM model weights (24 MB)
@@ -199,7 +201,7 @@ checkpoints/
 
 ## Reproducing Results
 
-All scripts should be run **from the repository root directory** (`ABI-CDMs/`).
+Scripts use CWD-relative paths. **Each step must be run from its own `scripts/XX_*/` subdirectory** as indicated by the `cd` command at the beginning of each step. (Step 2 (training) is also supported from the repo root.)
 
 ### Quick Start: Load Pre-trained Models
 
@@ -209,8 +211,8 @@ from nsbi_module import NSBICDM
 # Load a pre-trained DMC model
 model = NSBICDM("DMC", checkpoint_path="checkpoints/DMC")
 
-# Generate predictions for a subject
-predictions = model.predict(data, n_samples=1000)
+# Fit the model to observed trial-level data
+posterior = model.fit_data(data, n_posterior=1000)
 ```
 
 ### Full Analysis Pipeline
@@ -219,7 +221,9 @@ Run scripts in the following order. Each step depends on outputs from previous s
 
 #### Step 1: Preprocessing
 ```bash
-python scripts/01_preprocessing/21datasets_preprocessing.py
+cd scripts/01_preprocessing
+python 21datasets_preprocessing.py
+cd ../..
 ```
 *Input*: `data/*.csv`
 *Output*: Preprocessed datasets (in memory / passed to fitting)
@@ -247,24 +251,31 @@ cd ../..
 
 #### Step 4: Validation
 ```bash
-python scripts/04_validation/11parameter_recovery.py
-python scripts/04_validation/13model_recovery.py
+cd scripts/04_validation
+python 11parameter_recovery.py
+python 13model_recovery.py
+cd ../..
 ```
 
 #### Step 5: Model Comparison → **Manuscript Fig 2**
 ```bash
+cd scripts/05_model_comparison
+
 # Batch computation of all model comparison metrics
-python scripts/05_model_comparison/31prediciontion_comparison_RMSE.py
+python 31prediciontion_comparison_RMSE.py
 
 # Generate combined Fig 2 (2x3 landscape layout)
-python scripts/05_model_comparison/32fig2_v8_combined.py
+python 32fig2_v8_combined.py
+cd ../..
 ```
 *Output*: `output/fig2.svg`, `output/fig2.png`
 
 #### Step 6: Posterior Predictive Checks → **Manuscript Fig 3**
 ```bash
-python scripts/06_ppc/24PPC.py              # Compute PPC
-python scripts/06_ppc/24plot_ppc_fig3.py    # Generate Fig 3
+cd scripts/06_ppc
+python 24PPC.py              # Compute PPC
+python 24plot_ppc_fig3.py    # Generate Fig 3
+cd ../..
 ```
 *Output*: `output/fig3.svg`, `output/fig3.png`
 
@@ -290,15 +301,18 @@ cd ../..
 
 #### Step 8: Supplementary Materials
 ```bash
+cd scripts/08_supplementary
+
 # RMSE scaling sensitivity analysis
-python scripts/08_supplementary/33_rmse_scaling_sensitivity.py
-python scripts/08_supplementary/33_rmse_scaling_sensitivity_plot.py
+python 33_rmse_scaling_sensitivity.py
+python 33_rmse_scaling_sensitivity_plot.py
 
 # PPC component-level metrics
-python scripts/08_supplementary/33_ppc_component_metrics.py
+python 33_ppc_component_metrics.py
 
 # Multi-criterion model comparison (RMSE, G², aBIC)
-python scripts/08_supplementary/33_model_metric_supplement.py
+python 33_model_metric_supplement.py
+cd ../..
 ```
 *Output*: Supplementary CSV tables and figures
 
