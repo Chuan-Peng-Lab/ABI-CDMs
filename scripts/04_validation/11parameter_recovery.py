@@ -13,8 +13,8 @@ import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 import seaborn as sns
 
-from utils import cache_from_file
-from NSBI_CDMs import NSBICDM
+from nsbi_module.utils import cache_from_file
+from nsbi_module.NSBI_CDMs import NSBICDM
 
 
 # In[2]:

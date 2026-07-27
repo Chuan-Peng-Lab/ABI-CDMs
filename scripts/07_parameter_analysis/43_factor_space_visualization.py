@@ -37,7 +37,7 @@
 
 
 import sys
-from utils_ind_diff import *
+from nsbi_module.utils_ind_diff import *
 
 import pandas as pd
 import numpy as np

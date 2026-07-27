@@ -23,8 +23,8 @@ import matplotlib.lines as mlines
 import numpy as np
 
 import sys
-from plotting import restructure_plotting_data  # noqa: E402
-from study_labels import format_study_abbrev  # noqa: E402
+from nsbi_module.plotting import restructure_plotting_data  # noqa: E402
+from nsbi_module.study_labels import format_study_abbrev  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # 0.  Constants  (matching 24PPC.py)

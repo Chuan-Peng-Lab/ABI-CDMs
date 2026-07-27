@@ -31,8 +31,8 @@ import seaborn as sns
 
 warnings.filterwarnings("ignore")
 
-from utils import timer, FitStore
-from analysis_utils import (
+from nsbi_module.utils import timer, FitStore
+from nsbi_module.analysis_utils import (
     compute_model_prediction_indices,
     calculate_indices,
     concat_dfs_by_subj,

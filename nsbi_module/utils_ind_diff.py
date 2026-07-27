@@ -14,7 +14,7 @@ except ImportError:
 import matplotlib.patches as mpatches
 import re
 
-from study_labels import format_author_year
+from .study_labels import format_author_year
 
 
 def format_task_name(text):

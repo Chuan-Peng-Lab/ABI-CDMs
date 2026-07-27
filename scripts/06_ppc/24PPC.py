@@ -9,10 +9,10 @@ import numpy as np
 from tqdm import tqdm
 import sys
 
-from NSBI_CDMs import NSBICDM, NSBICDMs
-from utils import FitStore
-from plotting import *
-from utils_pydmc import Ob
+from nsbi_module.NSBI_CDMs import NSBICDM, NSBICDMs
+from nsbi_module.utils import FitStore
+from nsbi_module.plotting import *
+from nsbi_module.utils_pydmc import Ob
 
 get_ipython().run_line_magic('load_ext', 'autoreload')
 get_ipython().run_line_magic('autoreload', '2')

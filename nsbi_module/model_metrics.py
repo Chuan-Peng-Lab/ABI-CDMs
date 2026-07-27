@@ -17,7 +17,7 @@ Two types of metrics are supported:
 
 import numpy as np
 
-from utils_preprocessing import (
+from .utils_preprocessing import (
     compute_quantile_bin_stats,
     normalize_behavioral_trials,
 )

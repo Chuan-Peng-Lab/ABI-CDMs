@@ -8,8 +8,8 @@ import pandas as pd
 import numpy as np
 import sys
 
-from NSBI_CDMs import NSBICDM, NSBICDMs
-from utils import FitStore, timer, cache_from_file
+from nsbi_module.NSBI_CDMs import NSBICDM, NSBICDMs
+from nsbi_module.utils import FitStore, timer, cache_from_file
 
 get_ipython().run_line_magic('load_ext', 'autoreload')
 get_ipython().run_line_magic('autoreload', '2')

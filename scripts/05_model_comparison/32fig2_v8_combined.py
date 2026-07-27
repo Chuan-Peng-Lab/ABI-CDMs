@@ -27,7 +27,7 @@ import pandas as pd
 import seaborn as sns
 
 import sys
-from utils_ind_diff import (
+from nsbi_module.utils_ind_diff import (
     add_subplot_label,
     apply_nature_bar_axis_style,
     calc_best_model_proportion,
@@ -42,7 +42,7 @@ from utils_ind_diff import (
     rank_models_by_metric,
     summarize_model_performance,
 )
-from study_labels import format_study_label, format_study_abbrev
+from nsbi_module.study_labels import format_study_label, format_study_abbrev
 
 warnings.filterwarnings("ignore")
 

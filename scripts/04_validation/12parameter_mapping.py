@@ -9,8 +9,8 @@ import pandas as pd
 import seaborn as sns
 
 import sys
-from NSBI_CDMs import NSBICDM, NSBICDMs
-from utils import timer, cache_from_file
+from nsbi_module.NSBI_CDMs import NSBICDM, NSBICDMs
+from nsbi_module.utils import timer, cache_from_file
 
 get_ipython().run_line_magic('load_ext', 'autoreload')
 get_ipython().run_line_magic('autoreload', '2')
@@ -23,7 +23,7 @@ get_ipython().run_line_magic('autoreload', '2')
 
 from tqdm import tqdm
 import torch
-from plotting import regplot_with_corr
+from nsbi_module.plotting import regplot_with_corr
 
 @timer
 def gen_data_and_fitting(

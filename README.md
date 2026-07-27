@@ -240,6 +240,7 @@ cd scripts/03_fitting
 python 22fitting_and_predicting.py         # Main fitting
 python 22fitting_and_predicting_dmc_v2.py  # DMC v2 variant
 python 23individual_analysis_preprocess.py # Individual subject indices
+python 23individual_analysis_preprocess_dmc_v2.py
 cd ../..
 ```
 *Output*: `23subj_indices_*.csv`, `23model_prediction_indices*.csv`

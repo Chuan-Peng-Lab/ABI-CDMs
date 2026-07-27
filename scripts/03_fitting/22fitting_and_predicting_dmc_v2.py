@@ -20,8 +20,8 @@ from tqdm import tqdm
 
 warnings.filterwarnings('ignore')
 
-from utils import FitStore
-from dmc_v2_loader import get_dmc_v2_model, STORE_KEY_PREFIX, DEFAULT_CHECKPOINT
+from nsbi_module.utils import FitStore
+from nsbi_module.dmc_v2_loader import get_dmc_v2_model, STORE_KEY_PREFIX, DEFAULT_CHECKPOINT
 
 # ## 1. Register & load DMC_v2 model
 #

@@ -1,4 +1,4 @@
-from default_settings import DEFAULT_NET_CONFIG
+from .default_settings import DEFAULT_NET_CONFIG
 
 import numpy as np
 import pandas as pd

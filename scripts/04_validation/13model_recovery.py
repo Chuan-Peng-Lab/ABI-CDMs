@@ -12,9 +12,9 @@ from tqdm import tqdm
 import sys
 
 
-from model_metrics import ModelMetricEvaluator
-from NSBI_CDMs import NSBICDM, NSBICDMs
-from utils import timer, cache_from_file
+from nsbi_module.model_metrics import ModelMetricEvaluator
+from nsbi_module.NSBI_CDMs import NSBICDM, NSBICDMs
+from nsbi_module.utils import timer, cache_from_file
 
 get_ipython().run_line_magic('load_ext', 'autoreload')
 get_ipython().run_line_magic('autoreload', '2')

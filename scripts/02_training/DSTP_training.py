@@ -6,8 +6,8 @@
 
 import sys
 
-from NSBI_CDMs import NSBICDM
-from plotting import plot_rt_dists
+from nsbi_module.NSBI_CDMs import NSBICDM
+from nsbi_module.plotting import plot_rt_dists
 import time
 
 %load_ext autoreload

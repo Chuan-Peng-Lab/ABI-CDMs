@@ -18,7 +18,7 @@ from scipy import stats
 warnings.filterwarnings('ignore')
 
 import sys
-from utils_ind_diff import *
+from nsbi_module.utils_ind_diff import *
 
 
 sns.set_style("white")

@@ -12,7 +12,7 @@ import pingouin as pg
 from sklearn.preprocessing import StandardScaler
 
 import sys
-from utils_ind_diff import *
+from nsbi_module.utils_ind_diff import *
 
 get_ipython().run_line_magic('load_ext', 'autoreload')
 get_ipython().run_line_magic('autoreload', '2')

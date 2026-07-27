@@ -9,10 +9,10 @@ import pandas as pd
 from sklearn.metrics import mean_squared_error
 
 import sys
-from utils_pydmc import Ob
-from utils import timer, FitStore, cache_from_file
-from model_metrics import ModelMetricEvaluator
-from default_settings import PARAMS_KEY_NAME_MAPPING
+from nsbi_module.utils_pydmc import Ob
+from nsbi_module.utils import timer, FitStore, cache_from_file
+from nsbi_module.model_metrics import ModelMetricEvaluator
+from nsbi_module.default_settings import PARAMS_KEY_NAME_MAPPING
 
 get_ipython().run_line_magic('load_ext', 'autoreload')
 get_ipython().run_line_magic('autoreload', '2')
@@ -28,7 +28,7 @@ from tqdm.notebook import tqdm
 import warnings
 
 # ── Shared analysis utilities ──
-from analysis_utils import (
+from nsbi_module.analysis_utils import (
     rename_columns_with_model, concat_dfs_by_subj,
     calculate_indices, compute_model_prediction_indices,
     merge_params_and_indices, get_col_names,
@@ -99,7 +99,7 @@ pp_data_i_sub_j = pp_data_i[pp_data_i['subject_id'] == 0]
 # In[ ]:
 
 
-from model_metrics import ModelMetricEvaluator
+from nsbi_module.model_metrics import ModelMetricEvaluator
 
 map_nparams_of_models = {
     "DDM": 4,

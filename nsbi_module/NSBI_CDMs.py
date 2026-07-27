@@ -1,8 +1,8 @@
-from simulators import TRIAL_SIMULATOR, CDMs_experiment_simulator_wrapper
-from default_settings import MODEL_CONFIG, CONTEXT_CONFIG
+from .simulators import TRIAL_SIMULATOR, CDMs_experiment_simulator_wrapper
+from .default_settings import MODEL_CONFIG, CONTEXT_CONFIG
 
-from trainer import CDMsSimulator, CDMsTrainer
-from utils_pydmc import PlotFit
+from .trainer import CDMsSimulator, CDMsTrainer
+from .utils_pydmc import PlotFit
 import bayesflow as bf
 
 import numpy as np

@@ -26,11 +26,11 @@ from tqdm import tqdm
 
 warnings.filterwarnings('ignore')
 
-from utils import FitStore
-from default_settings import PARAMS_KEY_NAME_MAPPING
+from nsbi_module.utils import FitStore
+from nsbi_module.default_settings import PARAMS_KEY_NAME_MAPPING
 
 # ── Shared analysis utilities ──
-from analysis_utils import (
+from nsbi_module.analysis_utils import (
     concat_dfs_by_subj,
     calculate_indices, compute_model_prediction_indices,
     get_col_names,
@@ -42,7 +42,7 @@ from analysis_utils import (
 # This must run before PARAMS_KEY_NAME_MAPPING is used downstream.
 
 # %%
-from dmc_v2_loader import (
+from nsbi_module.dmc_v2_loader import (
     get_dmc_v2_model, 
     STORE_KEY_PREFIX, 
     MODEL_REG_NAME, 

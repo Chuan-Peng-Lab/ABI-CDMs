@@ -23,7 +23,7 @@ import seaborn as sns
 
 import sys
 
-from utils_ind_diff import *  # noqa: F403
+from nsbi_module.utils_ind_diff import *  # noqa: F403
 
 warnings.filterwarnings("ignore")
 

@@ -7,10 +7,10 @@
 import numpy as np
 import sys
 
-import simulators as simulators
-import default_settings as default_settings
-from NSBI_CDMs import NSBICDM
-from plotting import plot_rt_dists
+import nsbi_module.simulators as simulators
+import nsbi_module.default_settings as default_settings
+from nsbi_module.NSBI_CDMs import NSBICDM
+from nsbi_module.plotting import plot_rt_dists
 import time
 
 %load_ext autoreload

@@ -24,7 +24,7 @@ import seaborn as sns
 
 warnings.filterwarnings("ignore")
 
-from study_labels import format_author_year
+from nsbi_module.study_labels import format_author_year
 
 plt.rcParams["font.sans-serif"] = ["Arial", "Arial Unicode MS", "DejaVu Sans"]
 plt.rcParams["axes.unicode_minus"] = False

@@ -21,10 +21,10 @@ from sklearn.linear_model import LinearRegression, LogisticRegression
 from tqdm import tqdm
 from joblib import Parallel, delayed
 
-from utils_pydmc import Ob
-from utils import timer
-from model_metrics import ModelMetricEvaluator
-from default_settings import PARAMS_KEY_NAME_MAPPING
+from .utils_pydmc import Ob
+from .utils import timer
+from .model_metrics import ModelMetricEvaluator
+from .default_settings import PARAMS_KEY_NAME_MAPPING
 
 
 # ── Column formatting ────────────────────────────────────────────────────
