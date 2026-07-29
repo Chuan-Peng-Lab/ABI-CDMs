@@ -1,6 +1,6 @@
 # Data Sources
 
-This file documents the 10 behavioral datasets used in the paper. All data are publicly available from the original publications.
+This file documents the 8 behavioral datasets used in the paper. All data are publicly available from the original publications.
 
 ## Dataset Inventory
 
@@ -11,9 +11,7 @@ This file documents the 10 behavioral datasets used in the paper. All data are p
 | `reymermet2018.csv` | Stroop | 76 | 2018 | Rey-Mermet, A., Gade, M., & Oberauer, K. (2018). Should we stop thinking about inhibition? *Perspectives on Psychological Science*, 13(5), 625–650. | — |
 | `whitehead2019.csv` | Flanker, Simon, Stroop | 40 | 2019 | Whitehead, P. S., Brewer, G. A., & Blais, C. (2019). Reliability of cognitive control measures. *Behavior Research Methods*, 51, 1243–1255. | CC-BY |
 | `eisenberg2019.csv` | Stroop | 59 | 2019 | Eisenberg, I. W., Bissett, P. G., Enkavi, Z. A., et al. (2019). Uncovering the structure of self-regulation. *Nature Communications*, 10, 4328. | CC-BY |
-| `erb2023.csv` | Flanker | 63 | 2023 | Erb, C. D., Welhaf, M. S., & Marcovitch, S. (2023). The role of attention in cognitive control. *Journal of Experimental Psychology: General*, 152(5), 1391–1408. | — |
 | `kucina2023.csv` | Flanker, Simon, Stroop | 52 | 2023 | Kucina, T., Wells, L., & Heathcote, A. (2023). Individual differences in cognitive control. *Cognitive Psychology*, 143, 101568. | — |
-| `clayson2024.csv` | Flanker, Simon, Stroop | 76 | 2024 | Clayson, P. E., et al. (2024). Data quality and reliability in cognitive control tasks. *Psychophysiology*, 61(1), e14417. | — |
 | `lee2025.csv` | Flanker, Simon | 315 | 2025 | Lee, T. G., et al. (2025). Large-scale assessment of cognitive control. *Nature Human Behaviour*. | — |
 | `clayson2025.csv` | Flanker, Simon, Stroop | 606 | 2025 | Clayson, P. E., et al. (2025). Multi-site reliability of cognitive control tasks. *Psychophysiology*. | — |
 
