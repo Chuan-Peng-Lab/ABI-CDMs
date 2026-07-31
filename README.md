@@ -85,7 +85,8 @@ ABI-CDMs/
 │       ├── 33_rmse_scaling_sensitivity_plot.py
 │       ├── 33_ppc_component_metrics.py         # PPC component metrics
 │       └── 33_model_metric_supplement.py       # Multi-criterion comparison
-├── data/                              # Raw behavioral data (8 datasets)
+├── data/                              # Raw behavioral data (9 datasets)
+│   ├── clayson2024.csv
 │   ├── clayson2025.csv
 │   ├── eisenberg2019.csv
 │   ├── hedge2018.csv
@@ -158,7 +159,7 @@ pacman::p_load(brms, tidybayes, posterior)
 
 ## Data
 
-Raw behavioral data from 8 independent studies are included in `data/`. Each CSV contains trial-level response time and accuracy data for conflict tasks (Flanker, Simon, Stroop).
+Raw behavioral data from 9 independent studies are included in `data/`. Each CSV contains trial-level response time and accuracy data for conflict tasks (Flanker, Simon, Stroop).
 
 | Dataset | Task(s) | N | Citation |
 |---------|---------|---|----------|
@@ -168,6 +169,7 @@ Raw behavioral data from 8 independent studies are included in `data/`. Each CSV
 | `eisenberg2019.csv` | Stroop | 59 | Eisenberg et al. (2019) |
 | `kucina2023.csv` | Flanker, Simon, Stroop | 52 | Kucina et al. (2023) |
 | `lee2025.csv` | Flanker, Simon | 315 | Lee et al. (2025) |
+| `clayson2024.csv` | Flanker | 150 | Clayson et al. (2024) |
 | `clayson2025.csv` | Flanker, Simon, Stroop | 606 | Clayson et al. (2025) |
 | `reymermet2018.csv` | Stroop | 76 | Rey-Mermet et al. (2018) |
 

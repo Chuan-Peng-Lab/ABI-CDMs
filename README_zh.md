@@ -39,7 +39,7 @@ ABI-CDMs/
 │   ├── 06_ppc/                        # 后验预测检查 → 论文 Fig 3
 │   ├── 07_parameter_analysis/         # 因子分析与信度 → 论文 Fig 4
 │   └── 08_supplementary/              # 补充材料
-├── data/                              # 原始行为数据（8 个数据集）
+├── data/                              # 原始行为数据（9 个数据集）
 ├── checkpoints/                       # 模型权重（需从 OSF/Zenodo 下载）
 ├── output/                            # 生成的图表
 └── docs/
@@ -179,7 +179,7 @@ cd ../..
 
 ## 数据来源
 
-8 个公开数据集，详见 `docs/DATA_SOURCES.md`。
+9 个公开数据集，详见 `docs/DATA_SOURCES.md`。
 
 ---
 
