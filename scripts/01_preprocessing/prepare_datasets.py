@@ -527,9 +527,3 @@ tmp_author_year_task_df_dict["meta_data"] = stats_df
 with pd.HDFStore(INTERMEDIATE_DIR / "datasets_retest.h5") as store:
     for key, df in tmp_author_year_task_df_dict.items():
         store.put(key, df)
-
-
-
-
-
-
