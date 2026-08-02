@@ -5,7 +5,7 @@
 #
 # This script fits the driftdm_dmc model (referred to as DMC_v2 in output)
 # to all 21 validation datasets, generates posterior predictive data,
-# and saves results into the **existing** `22fitting_and_prediction.h5` FitStore.
+# and appends results to the shared `results/intermediate/model_fits.h5` store.
 #
 # Output keys use the `dmc_v2` prefix to avoid conflicts with the
 # original 4-model results (DDM/DMC/SSP/DSTP).
@@ -14,7 +14,6 @@
 
 # %%
 import pandas as pd
-import sys
 import warnings
 from tqdm import tqdm
 
@@ -22,6 +21,7 @@ warnings.filterwarnings('ignore')
 
 from nsbi_module.utils import FitStore
 from nsbi_module.dmc_v2_loader import get_dmc_v2_model, STORE_KEY_PREFIX, DEFAULT_CHECKPOINT
+from nsbi_module.project_paths import INTERMEDIATE_DIR, ensure_output_directories
 
 # ## 1. Register & load DMC_v2 model
 #
@@ -30,14 +30,15 @@ from nsbi_module.dmc_v2_loader import get_dmc_v2_model, STORE_KEY_PREFIX, DEFAUL
 
 # %%
 MODEL_REG_NAME = "driftdm_dmc"
-DATA_PATH = "./21preprocessed_datasets.h5"
-SAVE_NAME = "22fitting_and_prediction.h5"  # reuse existing store
+DATA_PATH = INTERMEDIATE_DIR / "datasets_cross_sectional.h5"
+SAVE_NAME = INTERMEDIATE_DIR / "model_fits.h5"  # append to the core-model store
 
 # ── Dataset filter (prefix match; None = all datasets) ──
 # TARGET_FILTER = ["hedge2018", "reymermet2018"]
 TARGET_FILTER = None   # uncomment to process all 21 datasets
 
 # ── Load the NSBI model (auto-registers on first call) ──
+ensure_output_directories()
 print(f"\n[..] Loading {MODEL_REG_NAME} from {DEFAULT_CHECKPOINT} ...")
 m_dmc_v2 = get_dmc_v2_model()
 print("[OK] Model loaded.")

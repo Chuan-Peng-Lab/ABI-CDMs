@@ -1,12 +1,10 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
 
 
 from sklearn.metrics import r2_score
 from scipy.stats import median_abs_deviation
-import sys
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
@@ -15,15 +13,16 @@ import seaborn as sns
 
 from nsbi_module.utils import cache_from_file
 from nsbi_module.NSBI_CDMs import NSBICDM
+from nsbi_module.project_paths import CHECKPOINTS_DIR, INTERMEDIATE_DIR, SUPPLEMENT_FIGURES_DIR, ensure_output_directories
 
 
-# In[2]:
 
 
-m_DDM = NSBICDM(model="DDM")
-m_DMC = NSBICDM(model="DMC")
-m_SSP = NSBICDM(model="SSP")
-m_DSTP = NSBICDM(model="DSTP")
+ensure_output_directories()
+m_DDM = NSBICDM(model="DDM", checkpoint_path=CHECKPOINTS_DIR / "DDM")
+m_DMC = NSBICDM(model="DMC", checkpoint_path=CHECKPOINTS_DIR / "DMC")
+m_SSP = NSBICDM(model="SSP", checkpoint_path=CHECKPOINTS_DIR / "SSP")
+m_DSTP = NSBICDM(model="DSTP", checkpoint_path=CHECKPOINTS_DIR / "DSTP")
 
 models = {
     "DDM": m_DDM,
@@ -35,7 +34,6 @@ models = {
 
 # ## Loss History
 
-# In[3]:
 
 
 import numpy as np
@@ -318,14 +316,12 @@ fig, axes = plot_model_losses(
     train_color="#377eb8",
     ylabel_models=["DDM", "DMC"],
     xlabel_models=["DMC", "LBA"],
-    # save_path="../figs/11_train_loss.svg",
     dpi=600
 )
 
 
 # ## Recovery
 
-# In[32]:
 
 
 def plot_recovery(
@@ -525,10 +521,9 @@ def plot_recovery(
         return axes
 
 
-# In[33]:
 
 
-@cache_from_file("11parameter_recovery_results.pkl")
+@cache_from_file(INTERMEDIATE_DIR / "parameter_recovery_results.pkl")
 def generate_test_simulations_and_posterior_samples(models, n_obs=100, n_pos=1000):
     """
     Generate test simulations and posterior samples for each model.
@@ -568,7 +563,6 @@ def generate_test_simulations_and_posterior_samples(models, n_obs=100, n_pos=100
 test_sims, posterior_samples = generate_test_simulations_and_posterior_samples(models)
 
 
-# In[34]:
 
 
 def plot_grid(
@@ -623,7 +617,7 @@ def plot_grid(
 
     hide_patterns : list of tuples, optional
         Patterns of subplots to hide. Each tuple should be (row, column_start, condition).
-        If None, uses default patterns: 
+        If None, uses default patterns:
         [(0, 5), (1, 6), (2, 7)] for rows 0, 1, 2 respectively.
 
     label_fontsize : int, default=40
@@ -656,7 +650,7 @@ def plot_grid(
     label_width = int(label_width_ratio * 10)  # Convert ratio to GridSpec units
     plot_width = 10
     gs = GridSpec(
-        n_rows, 
+        n_rows,
         n_cols + 1,  # +1 for label column
         width_ratios=[label_width] + [plot_width] * n_cols,
         figure=fig
@@ -751,7 +745,6 @@ def plot_grid(
     return fig, axs
 
 
-# In[35]:
 
 
 fig, axs = plot_grid(
@@ -763,7 +756,7 @@ fig, axs = plot_grid(
     n_cols=7,
     figsize_multiplier=4,
     model_label_fontsize=40,
-    save_path="../figs/11_parameters_recovery.svg",
+    save_path=SUPPLEMENT_FIGURES_DIR / "figure_s01_s03_parameter_recovery.svg",
     dpi=600,
     # Additional kwargs for plot_recovery
     title_fontsize=32,
@@ -775,7 +768,6 @@ fig, axs = plot_grid(
 
 # ## plot ecdf and z-score
 
-# In[40]:
 
 
 from collections.abc import Callable, Mapping, Sequence
@@ -863,7 +855,7 @@ def calibration_ecdf(
 
         # Handle Dictionary input for targets
         if isinstance(targets, dict):
-             if variable_keys is None: 
+             if variable_keys is None:
                   variable_keys = list(targets.keys())
 
              # Robust merge for targets: (N,) or (N, 1)
@@ -1122,7 +1114,7 @@ def z_score_contraction(
 
         # Handle Dictionary input for targets
         if isinstance(targets, dict):
-             if variable_keys is None: 
+             if variable_keys is None:
                   variable_keys = list(targets.keys())
 
              # Robust merge for targets: (N,) or (N, 1)
@@ -1155,13 +1147,13 @@ def z_score_contraction(
         # This is critical for add_titles_and_labels to work correctly
         if num_row is None:
             # Note: Since we flattened above for safety, we might lose 2D structure.
-            # However, if the user passed a list or 1D array, 
+            # However, if the user passed a list or 1D array,
             # we simply assume 1 row or calculate loosely.
             # Ideally, we look at the original input shape if it was an ndarray.
             if isinstance(axes, np.ndarray) and axes.ndim > 1:
                 num_row = axes.shape[0]
             else:
-                num_row = 1 
+                num_row = 1
 
         if num_col is None:
             if isinstance(axes, np.ndarray) and axes.ndim > 1:
@@ -1197,7 +1189,7 @@ def z_score_contraction(
     # Avoid division by zero if prior variance is 0 (e.g. fixed parameter)
     with np.errstate(divide='ignore', invalid='ignore'):
         contraction = 1 - (post_vars / prior_vars)
-        # Clip only lower bound 0, upper bound can theoretically be slightly > 1 due to estimator noise, 
+        # Clip only lower bound 0, upper bound can theoretically be slightly > 1 due to estimator noise,
         # but logically should be <= 1. Standard implementation clips both.
         contraction = np.clip(contraction, 0, 1)
         z_score = (post_means - targets) / post_stds
@@ -1231,7 +1223,6 @@ def z_score_contraction(
     return plot_data["fig"]
 
 
-# In[37]:
 
 
 def plot_grid(
@@ -1286,7 +1277,7 @@ def plot_grid(
 
     hide_patterns : list of tuples, optional
         Patterns of subplots to hide. Each tuple should be (row, column_start, condition).
-        If None, uses default patterns: 
+        If None, uses default patterns:
         [(0, 5), (1, 6), (2, 7)] for rows 0, 1, 2 respectively.
 
     label_fontsize : int, default=40
@@ -1319,7 +1310,7 @@ def plot_grid(
     label_width = int(label_width_ratio * 10)  # Convert ratio to GridSpec units
     plot_width = 10
     gs = GridSpec(
-        n_rows, 
+        n_rows,
         n_cols + 1,  # +1 for label column
         width_ratios=[label_width] + [plot_width] * n_cols,
         figure=fig
@@ -1403,7 +1394,6 @@ def plot_grid(
     return fig, axs
 
 
-# In[38]:
 
 
 fig, axs = plot_grid(
@@ -1415,7 +1405,7 @@ fig, axs = plot_grid(
     n_cols=7,
     figsize_multiplier=4,
     model_label_fontsize=40,
-    save_path="../figs/11_ecdf.svg",
+    save_path=SUPPLEMENT_FIGURES_DIR / "figure_s02_ecdf.svg",
     dpi=600,
     # Additional kwargs for plot_recovery
     title_fontsize=32,
@@ -1425,7 +1415,6 @@ fig, axs = plot_grid(
 )
 
 
-# In[41]:
 
 
 fig, axs = plot_grid(
@@ -1437,7 +1426,7 @@ fig, axs = plot_grid(
     n_cols=7,
     figsize_multiplier=4,
     model_label_fontsize=40,
-    save_path="../figs/11_z_score.svg",
+    save_path=SUPPLEMENT_FIGURES_DIR / "figure_s03_z_score.svg",
     dpi=600,
     # Additional kwargs for plot_recovery
     title_fontsize=32,
@@ -1445,4 +1434,3 @@ fig, axs = plot_grid(
     tick_fontsize=20,
     color="#377eb8"
 )
-

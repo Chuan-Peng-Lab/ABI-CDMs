@@ -6,13 +6,13 @@
 # This script:
 # 1. Registers the driftdm_dmc simulator (from `34_ulrich2015_driftdm_dmc.py`)
 # 2. Reads DMC_v2 fitted parameters & posterior predictive data from
-#    `22fitting_and_prediction.h5`
+#    `results/intermediate/model_fits.h5`
 # 3. Computes subject-level behavioural indices (calculate_indices)
 # 4. Computes model prediction indices (aBIC, g_square, RMSE)
 # 5. Merges the new DMC_v2 results with the **existing** 4-model CSV files
 # 6. Saves two new CSV files:
-#    - `23subj_indices_across_models_and_tasks_dmc_v2.csv`
-#    - `23model_prediction_indices_dmc_v2.csv`
+#    - `subject_indices_extended_dmc.csv`
+#    - `model_prediction_indices_extended_dmc.csv`
 #
 # Existing source files are NOT modified.
 
@@ -20,7 +20,6 @@
 
 # %%
 import pandas as pd
-import sys
 import warnings
 from tqdm import tqdm
 
@@ -28,6 +27,7 @@ warnings.filterwarnings('ignore')
 
 from nsbi_module.utils import FitStore
 from nsbi_module.default_settings import PARAMS_KEY_NAME_MAPPING
+from nsbi_module.project_paths import INTERMEDIATE_DIR, ensure_output_directories
 
 # ── Shared analysis utilities ──
 from nsbi_module.analysis_utils import (
@@ -43,9 +43,9 @@ from nsbi_module.analysis_utils import (
 
 # %%
 from nsbi_module.dmc_v2_loader import (
-    get_dmc_v2_model, 
-    STORE_KEY_PREFIX, 
-    MODEL_REG_NAME, 
+    get_dmc_v2_model,
+    STORE_KEY_PREFIX,
+    MODEL_REG_NAME,
     DRIFTDMC_DMC_CONFIG  # <-- ADD THIS IMPORT
 )
 get_dmc_v2_model   # just import — actual registration happens lazily
@@ -62,8 +62,9 @@ print(f"     dmc_v2 params: {list(PARAMS_KEY_NAME_MAPPING.get(STORE_KEY_PREFIX, 
 
 # %%
 STORE_KEY_PREFIX = "dmc_v2"
-STORE_FITS_PATH = "22fitting_and_prediction.h5"
-STORE_DATASETS_PATH = "21preprocessed_datasets.h5"
+ensure_output_directories()
+STORE_FITS_PATH = INTERMEDIATE_DIR / "model_fits.h5"
+STORE_DATASETS_PATH = INTERMEDIATE_DIR / "datasets_cross_sectional.h5"
 
 # ── Dataset filter (prefix match; None = all datasets with cached fits) ──
 # TARGET_FILTER = ["hedge2018", "reymermet2018"]
@@ -164,8 +165,8 @@ print("\n" + "=" * 60)
 print("  MERGING DMC_v2 INTO SUBJECT INDICES CSV")
 print("=" * 60)
 
-OLD_CSV_PATH = "23subj_indices_across_models_and_tasks.csv"
-NEW_CSV_PATH = "23subj_indices_across_models_and_tasks_dmc_v2.csv"
+OLD_CSV_PATH = INTERMEDIATE_DIR / "subject_indices.csv"
+NEW_CSV_PATH = INTERMEDIATE_DIR / "subject_indices_extended_dmc.csv"
 
 # ── Step 5a: Generate DMC_v2 parameter + behaviour DataFrame ──
 print("[..] Building DMC_v2 param+behaviour table ...")
@@ -231,8 +232,8 @@ print(f"  DMC_v2 predictions: {model_pred_dmc_v2.shape[0]} rows")
 # ## 7. Merge with old CSV — Model prediction indices
 
 # %%
-OLD_PRED_CSV = "23model_prediction_indices.csv"
-NEW_PRED_CSV = "23model_prediction_indices_dmc_v2.csv"
+OLD_PRED_CSV = INTERMEDIATE_DIR / "model_prediction_indices.csv"
+NEW_PRED_CSV = INTERMEDIATE_DIR / "model_prediction_indices_extended_dmc.csv"
 
 print(f"[..] Loading old predictions: {OLD_PRED_CSV} ...")
 df_pred_old = pd.read_csv(OLD_PRED_CSV)

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
 
 
 import matplotlib.pyplot as plt
@@ -9,26 +8,18 @@ import seaborn as sns
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-import sys
-
-
 from nsbi_module.model_metrics import ModelMetricEvaluator
 from nsbi_module.NSBI_CDMs import NSBICDM, NSBICDMs
 from nsbi_module.utils import timer, cache_from_file
-
-ipython = globals().get("get_ipython")
-if ipython:
-    ipython.run_line_magic("load_ext", "autoreload")
-    ipython.run_line_magic("autoreload", "2")
+from nsbi_module.project_paths import CHECKPOINTS_DIR, INTERMEDIATE_DIR, SUPPLEMENT_FIGURES_DIR, ensure_output_directories
 
 
-# In[2]:
 
-
-m_DDM = NSBICDM("DDM", checkpoint_path="../../checkpoints/DDM")
-m_DMC = NSBICDM("DMC", checkpoint_path="../../checkpoints/DMC")
-m_SSP = NSBICDM("SSP", checkpoint_path="../../checkpoints/SSP")
-m_DSTP = NSBICDM("DSTP", checkpoint_path="../../checkpoints/DSTP")
+ensure_output_directories()
+m_DDM = NSBICDM("DDM", checkpoint_path=CHECKPOINTS_DIR / "DDM")
+m_DMC = NSBICDM("DMC", checkpoint_path=CHECKPOINTS_DIR / "DMC")
+m_SSP = NSBICDM("SSP", checkpoint_path=CHECKPOINTS_DIR / "SSP")
+m_DSTP = NSBICDM("DSTP", checkpoint_path=CHECKPOINTS_DIR / "DSTP")
 
 models = {
     "DDM": m_DDM,
@@ -44,15 +35,14 @@ CDMs_fit = NSBICDMs(models)
 
 # ### simulating data and fitting
 
-# In[3]:
 
 
 @timer
-@cache_from_file("13cross_fitting.pkl")
+@cache_from_file(INTERMEDIATE_DIR / "model_recovery_cross_fits.pkl")
 def cross_fitting(
-    models, 
-    n_prior = 5,     
-    n_trial = 50, 
+    models,
+    n_prior = 5,
+    n_trial = 50,
     n_posterior = 5000
     ):
 
@@ -69,7 +59,7 @@ def cross_fitting(
             # Generate simulated datasets once per simulation model
             prior_samples = models[sim_model].cdms_simulator.sample_prior(n_prior)
             sim_datasets = models[sim_model].simulate_data(
-                # n_sim = n_prior, 
+                # n_sim = n_prior,
                 n_trial = n_trial,
                 params=prior_samples
             )
@@ -117,7 +107,6 @@ def cross_fitting(
     return result
 
 
-# In[4]:
 
 
 # simulate n_prior prior parameter sets
@@ -130,18 +119,18 @@ fitting_result = cross_fitting(models, n_prior=n_prior, n_trial=n_trial)
 # {
 #   'DDM': [
 #     {
-#       'prior': DataFrame, 
-#       'DDM': {'param_trace', 'param', 'sim_data'}, 
-#       'DMC': {...}, 
-#       'SSP': {...}, 
+#       'prior': DataFrame,
+#       'DDM': {'param_trace', 'param', 'sim_data'},
+#       'DMC': {...},
+#       'SSP': {...},
 #       'DSTP': {...},
 #       'dataset_idx': 0
 #     },
 #     {
-#       'prior': {...}, 
-#       'DDM': {...}, 
-#       'DMC': {...}, 
-#       'SSP': {...}, 
+#       'prior': {...},
+#       'DDM': {...},
+#       'DMC': {...},
+#       'SSP': {...},
 #       'DSTP': {...},
 #       'dataset_idx': 1
 #     },
@@ -149,10 +138,10 @@ fitting_result = cross_fitting(models, n_prior=n_prior, n_trial=n_trial)
 #   ],
 #   'DMC': [
 #     {
-#       'prior': {...}, 
-#       'DDM': {...}, 
-#       'DMC': {...}, 
-#       'SSP': {...}, 
+#       'prior': {...},
+#       'DDM': {...},
+#       'DMC': {...},
+#       'SSP': {...},
 #       'DSTP': {...},
 #       'dataset_idx': 0
 #     },
@@ -165,10 +154,9 @@ fitting_result = cross_fitting(models, n_prior=n_prior, n_trial=n_trial)
 
 
 # ### preprocessing
-# 
+#
 # It will take 4min to run this.
 
-# In[5]:
 
 
 # empirical_df = fitting_result["DMC"][0]["prior"]["sim_data"]
@@ -190,14 +178,12 @@ fitting_result = cross_fitting(models, n_prior=n_prior, n_trial=n_trial)
 # )
 
 
-# In[6]:
 
 
 # evaluator._empirical_summary.cdf_props.sort_values(
 #             ["condition", "bin"])
 
 
-# In[7]:
 
 
 def evaluate_model_recovery_metrics(
@@ -314,13 +300,12 @@ def process_cross_fitting_results(fitting_result, n_trial, n_slice=None, n_jobs=
     return pd.DataFrame(rows)
 
 predicting_restult = process_cross_fitting_results(
-    fitting_result, 
+    fitting_result,
     n_trial=n_trial,
     # n_slice=20
     )
 
 
-# In[8]:
 
 
 predicting_restult.head()
@@ -328,7 +313,6 @@ predicting_restult.head()
 
 # ### plot
 
-# In[9]:
 
 
 def calculate_cross_table(
@@ -356,7 +340,7 @@ def calculate_cross_table(
     fit_col : str, default "fit_model"
         Column indicating the candidate/fitted model.
     sort_models : bool, default True
-        If True, sort sim_model and fit_model alphabetically. 
+        If True, sort sim_model and fit_model alphabetically.
         If you need a custom order, set this to False and pre-sort your model labels
         using pandas categorical ordering before calling this function.
 
@@ -412,7 +396,7 @@ def calculate_cross_table(
 
     return results
 
-def plot_heatmap(df, title=None, ax=None, save=True, save_path="../figs/"):
+def plot_heatmap(df, title="rmse", ax=None, save=True, save_path=SUPPLEMENT_FIGURES_DIR):
 
     if ax is None:
         fig, ax = plt.subplots(figsize=(5, 4))
@@ -421,9 +405,9 @@ def plot_heatmap(df, title=None, ax=None, save=True, save_path="../figs/"):
         created_fig = False
 
     sns.heatmap(
-        df, 
-        annot=True, 
-        cmap="coolwarm", 
+        df,
+        annot=True,
+        cmap="coolwarm",
         cbar=False,
         ax=ax
     )
@@ -436,22 +420,19 @@ def plot_heatmap(df, title=None, ax=None, save=True, save_path="../figs/"):
 
     if save:
         title = title.replace(" ", "_") if title else ""
-        plt.savefig(f"{save_path}13_model_recovery_{title}.svg", bbox_inches='tight')
+        plt.savefig(save_path / f"figure_s04_model_recovery_{title}.svg", bbox_inches='tight')
 
 
-# In[10]:
 
 
-cross_tables = calculate_cross_table(predicting_restult) 
+cross_tables = calculate_cross_table(predicting_restult)
 
 
-# In[11]:
 
 
 plot_heatmap(cross_tables["RMSE"])
 
 
-# In[12]:
 
 
 fig, axes = plt.subplots(1, 2, figsize=(10, 4))
@@ -459,11 +440,7 @@ fig, axes = plt.subplots(1, 2, figsize=(10, 4))
 plot_heatmap(cross_tables["g_square"], ax=axes[0], title="G square", save=False)
 plot_heatmap(cross_tables["aBIC"], ax=axes[1], title="aBIC", save=False)
 
-plt.savefig(f"../figs/13_model_recovery_gsquare_and_aBIC.svg", bbox_inches='tight')
-
-
-# In[ ]:
-
+plt.savefig(SUPPLEMENT_FIGURES_DIR / "figure_s04_model_recovery_metrics.svg", bbox_inches='tight')
 
 
 

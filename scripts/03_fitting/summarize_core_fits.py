@@ -1,28 +1,20 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
 
 
 import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_squared_error
 
-import sys
 from nsbi_module.utils_pydmc import Ob
 from nsbi_module.utils import timer, FitStore, cache_from_file
 from nsbi_module.model_metrics import ModelMetricEvaluator
 from nsbi_module.default_settings import PARAMS_KEY_NAME_MAPPING
-
-ipython = globals().get("get_ipython")
-if ipython:
-    ipython.run_line_magic("load_ext", "autoreload")
-    ipython.run_line_magic("autoreload", "2")
-
+from nsbi_module.project_paths import INTERMEDIATE_DIR, ensure_output_directories
 
 # ## helper functions
 
-# In[ ]:
 
 
 from sklearn.linear_model import LinearRegression, LogisticRegression
@@ -54,9 +46,9 @@ def align_and_concatenate_props(props_1, props_2):
 
     # Define the strict order of concatenation used in the cost function
     keys_order = [
-        'cdf_props_congruent', 
+        'cdf_props_congruent',
         'cdf_props_incongruent',
-        'caf_props_congruent', 
+        'caf_props_congruent',
         'caf_props_incongruent'
     ]
 
@@ -82,7 +74,6 @@ def align_and_concatenate_props(props_1, props_2):
 
     return final_arr_1, final_arr_2
 
-# In[11]:
 
 
 task_indices = indices_dict["clayson2025flanker"]
@@ -91,14 +82,12 @@ pp_data_i = task_indices["ppd"]["DDM"]["trial_data"]
 # ntrial_by_subj = obs_trial_data.groupby('subject_id')['subject_id'].count()
 
 
-# In[14]:
 
 
 obs_data_i_sub_j = obs_data_i[obs_data_i['subject_id'] == 0]
 pp_data_i_sub_j = pp_data_i[pp_data_i['subject_id'] == 0]
 
 
-# In[ ]:
 
 
 from nsbi_module.model_metrics import ModelMetricEvaluator
@@ -132,19 +121,19 @@ abic_i = evaluator.compute_abic_proportions(
 
 # ## Load data
 
-# In[6]:
 
 
-store_datasets_path = '21preprocessed_datasets.h5'
-store_fits_path = '22fitting_and_prediction.h5'
+ensure_output_directories()
+store_datasets_path = INTERMEDIATE_DIR / "datasets_cross_sectional.h5"
+store_fits_path = INTERMEDIATE_DIR / "model_fits.h5"
 
 
 # ## Merge fitting parameters across models
 
 # ### Calculating behaviour indices and extract fitted parameters
-# 
-# It will cost 44s to calculate behaviour indices. If calculating the KL divergence, it will cost another 6hour. 
-# 
+#
+# It will cost 44s to calculate behaviour indices. If calculating the KL divergence, it will cost another 6hour.
+#
 # The output indices_dict has structure as follows:
 # ```
 # {'clayson2025flanker': {'obs': {'trial_data': 'DataFrame',
@@ -176,7 +165,6 @@ store_fits_path = '22fitting_and_prediction.h5'
 # }
 # ```
 
-# In[7]:
 
 
 @timer
@@ -266,7 +254,6 @@ indices_dict, fitted_df_dict = get_indices_dict(store_datasets_path,store_fits_p
 
 # ### Merge parameters and behaviour indices
 
-# In[19]:
 
 
 
@@ -275,18 +262,15 @@ df = get_col_names(df)
 df.head()
 
 
-# In[20]:
 
 
-df.to_csv("23subj_indices_across_models_and_tasks.csv", index=False)
+df.to_csv(INTERMEDIATE_DIR / "subject_indices.csv", index=False)
 
 
 # ### Calculating model prediction indices
 
-# In[27]:
 
 
-# @cache_from_file("23model_prediction_indices_cache.pkl")
 def compute_model_prediction_indices_with_cache(indices_dict):
     map_nparams_of_models = {
         "DDM": 4,
@@ -306,31 +290,27 @@ def compute_model_prediction_indices_with_cache(indices_dict):
 model_prediction_indices = compute_model_prediction_indices_with_cache(indices_dict)
 
 
-# In[38]:
 
 
 model_prediction_indices = get_col_names(model_prediction_indices)
 model_prediction_indices.head()
 
 
-# In[39]:
 
 
-model_prediction_indices.to_csv("23model_prediction_indices.csv", index=False)
+model_prediction_indices.to_csv(INTERMEDIATE_DIR / "model_prediction_indices.csv", index=False)
 
 
 # ## Reliability datasets preprocessing
-# 
-# It will cost 2 mins to calculate behaviour indices. 
-
-# In[40]:
+#
+# It will cost 2 mins to calculate behaviour indices.
 
 
-store_datasets_path = '21preprocessed_datasets_retest.h5'
-store_fits_path = '22fitting_and_prediction_retest.h5'
+
+store_datasets_path = INTERMEDIATE_DIR / "datasets_retest.h5"
+store_fits_path = INTERMEDIATE_DIR / "model_fits_retest.h5"
 
 
-# In[41]:
 
 
 @timer
@@ -354,7 +334,7 @@ def get_indices_dict(store_datasets_path, store_fits_path):
     for key in store_datasets.keys():
 
         key = key.lstrip("/")
-        if "meta_data" not in key: 
+        if "meta_data" not in key:
 
             df = store_datasets[key]
             # Group by session and store each session's data separately
@@ -377,7 +357,6 @@ indices_dict, fitted_df_dict = get_indices_dict(store_datasets_path, store_fits_
 
 # ### Extract parameters and behaviour indices
 
-# In[42]:
 
 
 def get_col_names(df):
@@ -388,7 +367,6 @@ def get_col_names(df):
     return tmp_df
 
 
-# In[43]:
 
 
 
@@ -397,17 +375,15 @@ subj_indices_across_models_and_tasks = get_col_names(subj_indices_across_models_
 subj_indices_across_models_and_tasks.head()
 
 
-# In[44]:
 
 
-subj_indices_across_models_and_tasks.to_csv("23subj_indices_across_models_and_tasks_retest.csv", index=False)
+subj_indices_across_models_and_tasks.to_csv(INTERMEDIATE_DIR / "subject_indices_retest.csv", index=False)
 
 
 # ### Calculating model prediction indices
-# 
-# It will cost 30s to calculate model prediction indices. If calculating the KL divergence, it will cost another 12 min. 
+#
+# It will cost 30s to calculate model prediction indices. If calculating the KL divergence, it will cost another 12 min.
 
-# In[45]:
 
 
 map_nparams_of_models = {
@@ -425,23 +401,20 @@ model_prediction_indices = compute_model_prediction_indices(
 )
 
 
-# In[46]:
 
 
 model_prediction_indices = get_col_names(model_prediction_indices)
 model_prediction_indices.head()
 
 
-# In[47]:
 
 
-model_prediction_indices.to_csv("23model_prediction_indices_retest.csv", index=False)
-
-
-# In[ ]:
+model_prediction_indices.to_csv(INTERMEDIATE_DIR / "model_prediction_indices_retest.csv", index=False)
 
 
 
 
 
-# ### 
+
+
+# ###

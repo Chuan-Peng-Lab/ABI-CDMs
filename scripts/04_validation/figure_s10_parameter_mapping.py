@@ -1,26 +1,18 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
 
 
 import numpy as np
 import pandas as pd
 import seaborn as sns
 
-import sys
 from nsbi_module.NSBI_CDMs import NSBICDM, NSBICDMs
 from nsbi_module.utils import timer, cache_from_file
-
-ipython = globals().get("get_ipython")
-if ipython:
-    ipython.run_line_magic("load_ext", "autoreload")
-    ipython.run_line_magic("autoreload", "2")
-
+from nsbi_module.project_paths import CHECKPOINTS_DIR, INTERMEDIATE_DIR, SUPPLEMENT_FIGURES_DIR, ensure_output_directories
 
 # ## Definition
 
-# In[9]:
 
 
 from tqdm import tqdm
@@ -101,19 +93,18 @@ def plot_correlation(df:pd.DataFrame, param = "a", save=True):
     g.figure.text(-0.05, 0.5, "Fitting model", va='center', rotation='vertical', fontsize=18)
 
     if save:
-        g.savefig(f"../figs/12_models_parameters_map_{param}.svg", bbox_inches='tight')
+        g.savefig(SUPPLEMENT_FIGURES_DIR / f"figure_s10_parameter_mapping_{param}.svg", bbox_inches='tight')
 
     return g
 
 
-# In[3]:
 
 
 best_estimates = {
     "DDM": {
-        "a": 1.098917, 
-        "ndt": 0.257500, 
-        "v_c": 3.614667, 
+        "a": 1.098917,
+        "ndt": 0.257500,
+        "v_c": 3.614667,
         "v_i": 2.548667
     },
 
@@ -146,13 +137,13 @@ best_estimates = {
 }
 
 
-# In[4]:
 
 
-m_DDM = NSBICDM("DDM", checkpoint_path="../../checkpoints/DDM")
-m_DMC = NSBICDM("DMC", checkpoint_path="../../checkpoints/DMC")
-m_SSP = NSBICDM("SSP", checkpoint_path="../../checkpoints/SSP")
-m_DSTP = NSBICDM("DSTP", checkpoint_path="../../checkpoints/DSTP")
+ensure_output_directories()
+m_DDM = NSBICDM("DDM", checkpoint_path=CHECKPOINTS_DIR / "DDM")
+m_DMC = NSBICDM("DMC", checkpoint_path=CHECKPOINTS_DIR / "DMC")
+m_SSP = NSBICDM("SSP", checkpoint_path=CHECKPOINTS_DIR / "SSP")
+m_DSTP = NSBICDM("DSTP", checkpoint_path=CHECKPOINTS_DIR / "DSTP")
 
 models = {
     "DDM": m_DDM,
@@ -166,39 +157,32 @@ CDMs_fit = NSBICDMs(models)
 
 # ## a and ter
 
-# In[5]:
 
 
 params_vary = np.linspace(1, 2, 20 + 1)
 param_key = "a"
 n_trial = 200
 
-a_param_vary_map = cache_from_file(f'12_parameters_mapping_results_{param_key}.pkl')(gen_data_and_fitting)(models, best_estimates, param_key, params_vary, n_trial)
+a_param_vary_map = cache_from_file(INTERMEDIATE_DIR / f'parameter_mapping_{param_key}.pkl')(gen_data_and_fitting)(models, best_estimates, param_key, params_vary, n_trial)
 
 
-# In[10]:
 
 
 g = plot_correlation(a_param_vary_map, "a")
 
 
-# In[7]:
 
 
 params_vary = np.linspace(0.15, 0.3, 15 + 1)
 param_key = "ndt"
 n_trial = 200
 
-t_param_vary_map = cache_from_file(f'12_parameters_mapping_results_{param_key}.pkl')(gen_data_and_fitting)(models, best_estimates, param_key, params_vary, n_trial)
+t_param_vary_map = cache_from_file(INTERMEDIATE_DIR / f'parameter_mapping_{param_key}.pkl')(gen_data_and_fitting)(models, best_estimates, param_key, params_vary, n_trial)
 
 
-# In[11]:
 
 
 g = plot_correlation(t_param_vary_map, "ndt")
-
-
-# In[ ]:
 
 
 

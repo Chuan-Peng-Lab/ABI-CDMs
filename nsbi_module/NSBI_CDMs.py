@@ -152,13 +152,13 @@ class NSBICDM(CDMsTrainer):
         self,
         model: str = "DMC",
         obs_df: pd.DataFrame = None,
-        df_col=["rt", "accuracy", "congruency"],
+        df_col=None,
         subject_col="subject_id",
         **kwargs,
     ):
         generator = load_generator(model)
 
-        self.df_col = df_col
+        self.df_col = df_col or ["rt", "accuracy", "congruency"]
         self.subject_col = subject_col
         if obs_df is not None:
             self._check_df(obs_df)
@@ -1004,7 +1004,7 @@ class NSBICDM(CDMsTrainer):
     #     return param_map_df
 
 
-def to_infdata(df_dict: dict, coords=[]):
+def to_infdata(df_dict: dict, coords=None):
     xr_dict = {}
     for i, j in df_dict.items():
         xrdata = xr.Dataset.from_dataframe(j)
@@ -1164,23 +1164,24 @@ class NSBICDMs:
     and simulating new data based on the fitted models.
 
     Example:
-    >>> # Initialize CDMs_NSBI models with specific checkpoint paths
-    >>> m_DDM = CDMs_NSBI("DDM", checkpoint_path="../../checkpoints/DDM")
-    >>> m_DMC = CDMs_NSBI("DMC", checkpoint_path="../../checkpoints/DMC")
-    >>> m_SSP = CDMs_NSBI("SSP", checkpoint_path="../../checkpoints/SSP")
-    >>> m_DSTP = CDMs_NSBI("DSTP", checkpoint_path="../../checkpoints/DSTP")
+    >>> from nsbi_module import NSBICDM
+    >>> from nsbi_module.project_paths import CHECKPOINTS_DIR
+    >>> m_ddm = NSBICDM("DDM", checkpoint_path=CHECKPOINTS_DIR / "DDM")
+    >>> m_dmc = NSBICDM("DMC", checkpoint_path=CHECKPOINTS_DIR / "DMC")
+    >>> m_ssp = NSBICDM("SSP", checkpoint_path=CHECKPOINTS_DIR / "SSP")
+    >>> m_dstp = NSBICDM("DSTP", checkpoint_path=CHECKPOINTS_DIR / "DSTP")
 
     >>> # Group the initialized models into a dictionary
     >>> models = {
-    ...     "DDM": m_DDM,
-    ...     "DMC": m_DMC,
-    ...     "SSP": m_SSP,
-    ...     "DSTP": m_DSTP
+    ...     "DDM": m_ddm,
+    ...     "DMC": m_dmc,
+    ...     "SSP": m_ssp,
+    ...     "DSTP": m_dstp
     ... }
 
     >>> # Create a sample DataFrame containing observational data
     >>> data = pd.DataFrame({
-    ...     'subject_id': ['1', '1', '2', '2', '3']  # Subject indices
+    ...     'subject_id': ['1', '1', '2', '2', '3'],  # Subject indices
     ...     'rt': [0.5, 0.7, 0.9, 0.6, 0.8],  # Reaction times
     ...     'accuracy': [1, 0, 1, 1, 0],  # Response values (1 for correct, 0 for error)
     ...     'congruency': [0, 1, 0, 1, 0],  # Congruency values (0 or 1)
@@ -1195,7 +1196,7 @@ class NSBICDMs:
         models: Dict[str, NSBICDM],
         data: pd.DataFrame = None,
         condition=None,
-        group_list=["subject_id"],
+        group_list=None,
     ):
         self.models = models
         self.models_name = list(models.keys())
@@ -1203,6 +1204,7 @@ class NSBICDMs:
 
         self.condition = condition
 
+        group_list = list(group_list or ["subject_id"])
         if condition is not None:
             if isinstance(condition, str):
                 group_list.extend([condition])
@@ -1371,4 +1373,3 @@ def pyCDMs_plot(fit_plot: PlotFit, ax, type="summary", **kwargs):
             fit_plot.caf(ax=ax, show=False, **kwargs)
         case "delta":
             fit_plot.delta(ax=ax, show=False, **kwargs)
-

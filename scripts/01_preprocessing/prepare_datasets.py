@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
 
 
 import pandas as pd
@@ -9,8 +8,9 @@ import numpy as np
 import copy
 from typing import List, Sequence
 
+from nsbi_module.project_paths import DATA_DIR, INTERMEDIATE_DIR, ensure_output_directories
 
-# In[2]:
+
 
 
 def processing_data(df, task_id, retest=False):
@@ -96,9 +96,9 @@ def processing_data(df, task_id, retest=False):
     return df_tmp[selected_cols].reset_index(drop=True)
 
 def filter_data_by_quality(
-    data_dict, 
-    acc_threshold=0.6, 
-    dropped_ratio_threshold=0.10, 
+    data_dict,
+    acc_threshold=0.6,
+    dropped_ratio_threshold=0.10,
     rt_range=(0.15, 3.0)
 ):
     """
@@ -183,15 +183,15 @@ def find_subjects_in_multiple_tasks(df, subject_col = "subject", task_col = "tas
         n_tasks = df[task_col].nunique()
     subjects_in_multiple_tasks = (
         df.groupby(subject_col)[task_col]
-        .nunique()  
-        .loc[lambda x: x >= n_tasks]  
+        .nunique()
+        .loc[lambda x: x >= n_tasks]
         .index.tolist()
     )
     return subjects_in_multiple_tasks
 
 def filter_common_subject_ids(df_sequence: Sequence[pd.DataFrame], subject_col = "subject_id") -> List[pd.DataFrame]:
     """
-    Filters a sequence of DataFrames to retain only rows with subject_id values 
+    Filters a sequence of DataFrames to retain only rows with subject_id values
     common to all DataFrames in the sequence.
 
     Parameters
@@ -221,7 +221,7 @@ def filter_common_subject_ids(df_sequence: Sequence[pd.DataFrame], subject_col =
 
 def calculate_statistics_summary(original_dict, processed_dict):
     """
-    Generates a summary DataFrame by comparing the original raw data 
+    Generates a summary DataFrame by comparing the original raw data
     with the processed (cleaned) data.
 
     Args:
@@ -297,11 +297,11 @@ def calculate_statistics_summary(original_dict, processed_dict):
 
     # Reorder columns
     cols_order = [
-        'task_id', 'author_year', 'task_name', 
-        'n_subj', 'n_excluded_subj', 
-        'mean_trials_per_subj', 
+        'task_id', 'author_year', 'task_name',
+        'n_subj', 'n_excluded_subj',
+        'mean_trials_per_subj',
         'total_trials', 'total_trials_initial', 'dropped_trials', 'dropped_perc',
-        'mean_accuracy', 
+        'mean_accuracy',
         'rt_25%', 'rt_median', 'rt_75%', 'rt_max'
     ]
 
@@ -315,23 +315,21 @@ def calculate_statistics_summary(original_dict, processed_dict):
     return stats_df
 
 
-# In[3]:
 
 
-df_ulrich2015 = pd.read_csv("../../data/ulrich2015.csv", index_col=0)
-df_whitehead2019 = pd.read_csv("../../data/whitehead2019.csv")
-df_hedge2018 = pd.read_csv("../../data/hedge2018.csv")
-df_kucina2023 = pd.read_csv("../../data/kucina2023.csv")
-df_eisenberg2019 = pd.read_csv("../../data/eisenberg2019.csv", index_col=0)
-df_lee2025 = pd.read_csv("../../data/lee2025.csv", index_col=0)
+df_ulrich2015 = pd.read_csv(DATA_DIR / "ulrich2015.csv", index_col=0)
+df_whitehead2019 = pd.read_csv(DATA_DIR / "whitehead2019.csv")
+df_hedge2018 = pd.read_csv(DATA_DIR / "hedge2018.csv")
+df_kucina2023 = pd.read_csv(DATA_DIR / "kucina2023.csv")
+df_eisenberg2019 = pd.read_csv(DATA_DIR / "eisenberg2019.csv", index_col=0)
+df_lee2025 = pd.read_csv(DATA_DIR / "lee2025.csv", index_col=0)
 # Generate session_rank for each subject based on session order
 df_lee2025.rename(columns={'session': 'session_id'}, inplace=True)
 df_lee2025['session'] = df_lee2025.groupby(['task','subject'])['session_id'].rank(method='dense')
 df_lee2025.sort_values(by=['task', 'subject', 'session'], inplace=True)
-df_reymermet2018 = pd.read_csv("../../data/reymermet2018.csv").query("congruency in ['congruent', 'incongruent']")
-# df_erb2023 = pd.read_csv("../../data/erb2023.csv")
-df_clayson2024 = pd.read_csv("../../data/clayson2024.csv")
-df_clayson2025 = pd.read_csv("../../data/clayson2025.csv")
+df_reymermet2018 = pd.read_csv(DATA_DIR / "reymermet2018.csv").query("congruency in ['congruent', 'incongruent']")
+df_clayson2024 = pd.read_csv(DATA_DIR / "clayson2024.csv")
+df_clayson2025 = pd.read_csv(DATA_DIR / "clayson2025.csv")
 
 # Author-Year DataFrame dictionary
 author_year_df_dict = {
@@ -342,7 +340,6 @@ author_year_df_dict = {
     'eisenberg2019': df_eisenberg2019.query("session == 1"),
     'lee2025': df_lee2025.query("session == 1"),
     'reymermet2018': df_reymermet2018,
-    # 'erb2023': df_erb2023,
     'clayson2024': df_clayson2024,
     'clayson2025': df_clayson2025
 }
@@ -355,7 +352,6 @@ author_year_task_df_dict = {
     'whitehead2019flanker': author_year_df_dict["whitehead2019"].query("task=='flanker'"),
     'eisenberg2019flanker': author_year_df_dict["eisenberg2019"].query("task=='flanker'"),
     'kucina2023flanker': author_year_df_dict["kucina2023"].query("task=='flanker'"),
-    # 'erb2023flanker': author_year_df_dict["erb2023"].query("task=='flanker'"),
     'clayson2025flanker': df_clayson2025.query("task=='flanker'"),
     'lee2025flanker': author_year_df_dict["lee2025"].query("task=='flanker'"),
     'ulrich2015simon': author_year_df_dict["ulrich2015"].query("task=='simon'"),
@@ -364,36 +360,31 @@ author_year_task_df_dict = {
     'whitehead2019simon': author_year_df_dict["whitehead2019"].query("task=='simon'"),
     'eisenberg2019simon': author_year_df_dict["eisenberg2019"].query("task=='simon'"),
     'kucina2023simon': author_year_df_dict["kucina2023"].query("task=='simon'"),
-    # 'erb2023simon': author_year_df_dict["erb2023"].query("task=='simon'"),
     'hedge2018stroop': author_year_df_dict["hedge2018"].query("task=='stroop'"),
     'reymermet2018stroop': author_year_df_dict["reymermet2018"].query("task=='colorstroop'"),
     'whitehead2019stroop': author_year_df_dict["whitehead2019"].query("task=='stroop'"),
     'eisenberg2019stroop': author_year_df_dict["eisenberg2019"].query("task=='stroop'"),
     'kucina2023stroop': author_year_df_dict["kucina2023"].query("task=='stroop'"),
     # 'kucina2023stroopon': author_year_df_dict["kucina2023"].query("task=='stroopon'"),
-    # 'erb2023stroop': author_year_df_dict["erb2023"].query("task=='stroop'"),
     'clayson2025stroop': df_clayson2025.query("task=='stroop'"),
     'lee2025stroop': author_year_df_dict["lee2025"].query("task=='stroop'"),
 }
 
 
-# In[4]:
 
 
 author_year_task_df_dict = {key:processing_data(df, task_id=key) for key,df in author_year_task_df_dict.items()}
 
 
-# In[5]:
 
 
 cleaned_data = filter_data_by_quality(
-    author_year_task_df_dict, 
-    acc_threshold=0.6, 
+    author_year_task_df_dict,
+    acc_threshold=0.6,
     dropped_ratio_threshold=0.10
 )
 
 
-# In[6]:
 
 
 # Define the groups of keys you want to process together
@@ -417,17 +408,15 @@ for keys in task_groups:
         cleaned_data[key] = df
 
 
-# In[7]:
 
 
 stats_df = calculate_statistics_summary(
-    original_dict=author_year_task_df_dict, 
-    processed_dict=cleaned_data 
+    original_dict=author_year_task_df_dict,
+    processed_dict=cleaned_data
 )
 stats_df
 
 
-# In[8]:
 
 
 total_subjects = stats_df.groupby("author_year")[["n_subj"]].mean().reset_index()
@@ -438,24 +427,22 @@ print("The total number of trials:", stats_df["total_trials"].sum())
 total_subjects
 
 
-# In[9]:
 
 
 stats_df.groupby("task_name")[["n_subj","total_trials"]].sum()
 
 
-# In[10]:
 
 
-with pd.HDFStore("../03_fitting/21preprocessed_datasets.h5") as store:
-    for key, df in author_year_task_df_dict.items():
+ensure_output_directories()
+with pd.HDFStore(INTERMEDIATE_DIR / "datasets_cross_sectional.h5") as store:
+    for key, df in cleaned_data.items():
         store.put(key, df)
 
 
 # ## For retest datasets
-# 
+#
 
-# In[10]:
 
 
 df_eisenberg2019_filtered = (
@@ -498,7 +485,6 @@ for keys in task_groups:
         tmp_author_year_task_df_dict[key] = df
 
 
-# In[11]:
 
 
 stats = []
@@ -514,7 +500,7 @@ for name, df in tmp_author_year_task_df_dict.items():
     total_trials = len(df)
     filtered_df = df.query('0.15 < rt < 3')
     # Update the dictionary with the filtered DataFrame
-    tmp_author_year_task_df_dict[name] = filtered_df  
+    tmp_author_year_task_df_dict[name] = filtered_df
 
     kept_trials = len(filtered_df)
     dropped_trials = total_trials - kept_trials
@@ -534,17 +520,15 @@ stats_df = pd.DataFrame(stats)
 stats_df
 
 
-# In[67]:
 
 
 tmp_author_year_task_df_dict["meta_data"] = stats_df
 
-with pd.HDFStore("../03_fitting/21preprocessed_datasets_retest.h5") as store:
+with pd.HDFStore(INTERMEDIATE_DIR / "datasets_retest.h5") as store:
     for key, df in tmp_author_year_task_df_dict.items():
         store.put(key, df)
 
 
-# In[ ]:
 
 
 
