@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# coding: utf-8
 """
 Standalone script: generate Fig 3 – merged CAF + Delta PPC for selected studies.
 
@@ -9,48 +8,40 @@ Layout (7 rows × 3 columns):
   Rows 4–6:  Delta (same studies)
 
 Usage:
-    python 24plot_ppc_fig3.py
+    python scripts/06_ppc/figure_03_posterior_predictive_checks.py --selectable
 """
 
 import argparse
 import pickle
 from pathlib import Path
-from typing import Dict, Tuple
 
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
 import matplotlib.lines as mlines
+import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib import gridspec
 
-import sys
-from nsbi_module.plotting import restructure_plotting_data  # noqa: E402
-from nsbi_module.study_labels import format_study_abbrev  # noqa: E402
+from nsbi_module.plotting import restructure_plotting_data
+from nsbi_module.project_paths import INTERMEDIATE_DIR, MAIN_FIGURES_DIR
+from nsbi_module.study_labels import format_study_abbrev
 
 # ---------------------------------------------------------------------------
-# 0.  Constants  (matching 24PPC.py)
+# 0. Plot constants shared with the PPC generator.
 # ---------------------------------------------------------------------------
-# Strategy 2 (2026-07-24): reuse the four EFA factor colors from Fig4
-# (44fig4_efa_svg.py FACTORS c0) for within-manuscript consistency.
-# Revision (2026-07-24): DDM is the reference baseline model -> render it as a
-# neutral gray so it recedes behind the three substantive models. DMC takes the
-# vacated blue (DC) so it stays clearly distinct from DSTP's teal.
-#   DDM  -> baseline gray #808080 (neutral reference)
-#   SSP  -> NDT #7E6148 (brown)
-#   DMC  -> DC  #3b6cb3 (blue, was DDM)
-#   DSTP -> IP  #0099B4 (teal)
+# Paul Tol's colorblind-safe muted palette, selected in the 2026-07-29
+# manuscript color comparison (candidate D5).
 MODEL_COLORS = {
-    'DDM':  '#808080',
-    'SSP':  '#7E6148',
-    'DMC':  '#3b6cb3',
-    'DSTP': '#0099B4',
+    "DDM": "#4477AA",
+    "SSP": "#EE6677",
+    "DMC": "#228833",
+    "DSTP": "#CCBB44",
 }
-DEFAULT_TASKS      = ['flanker', 'simon', 'stroop']
-DEFAULT_TASK_ORDER = ['Flanker', 'Simon', 'Stroop']
+DEFAULT_TASKS = ["flanker", "simon", "stroop"]
+DEFAULT_TASK_ORDER = ["Flanker", "Simon", "Stroop"]
 DESIRED_MODEL_ORDER = ["DDM", "DMC", "SSP", "DSTP"]
 
 # Enhanced font sizes (larger than defaults)
 STUDY_LABEL_FONTSIZE = 12
-STUDY_LABEL_FONTWEIGHT = 'bold'
+STUDY_LABEL_FONTWEIGHT = "bold"
 TICK_LABELSIZE = 9
 SECTION_LABEL_FONTSIZE = 14
 
@@ -64,11 +55,13 @@ N_COLS = 3  # flanker, simon, stroop
 # ---------------------------------------------------------------------------
 # 1.  Load pre-computed plotting data
 # ---------------------------------------------------------------------------
-plotting_data = pickle.load(open("24_ppc_process_data_dict.pkl", "rb"))
+with (INTERMEDIATE_DIR / "ppc_data.pkl").open("rb") as input_file:
+    plotting_data = pickle.load(input_file)
 
-# Filter to selected studies (matching 24PPC.py)
-selected_keys = [k for k in plotting_data
-                 if k.startswith(('eisenberg', 'hedge', 'reymermet'))]
+# Filter to the selected studies used in the manuscript figure.
+selected_keys = [
+    k for k in plotting_data if k.startswith(("eisenberg", "hedge", "reymermet"))
+]
 selected_data = {k: plotting_data[k] for k in selected_keys}
 
 # Restructure for rows=studies × columns=tasks grid
@@ -84,6 +77,7 @@ for study_data in structured.values():
             models.update(task_data["models"].keys())
 models = [m for m in DESIRED_MODEL_ORDER if m in models]
 
+
 # ── Helper: draw CAF cell ──────────────────────────────────────────────────
 def _draw_caf_cell(ax, data):
     """Draw observed (black markers) + model (colored lines) CAF curves."""
@@ -91,9 +85,15 @@ def _draw_caf_cell(ax, data):
     for cond_key, col_name in [("comp", "comp"), ("incomp", "incomp")]:
         style = "-" if cond_key == "comp" else "--"
         if col_name in obs_df.columns:
-            ax.plot(obs_df["bin"], obs_df[col_name],
-                    color="black", linestyle=style,
-                    marker="o", markersize=4, linewidth=2)
+            ax.plot(
+                obs_df["bin"],
+                obs_df[col_name],
+                color="black",
+                linestyle=style,
+                marker="o",
+                markersize=4,
+                linewidth=2,
+            )
 
     for model_name in models:
         if model_name not in data.get("models", {}):
@@ -103,32 +103,48 @@ def _draw_caf_cell(ax, data):
         for cond_key, col_name in [("comp", "comp"), ("incomp", "incomp")]:
             style = "-" if cond_key == "comp" else "--"
             if col_name in pred_df.columns:
-                ax.plot(pred_df["bin"], pred_df[col_name],
-                        color=c, linestyle=style, linewidth=2)
+                ax.plot(
+                    pred_df["bin"],
+                    pred_df[col_name],
+                    color=c,
+                    linestyle=style,
+                    linewidth=2,
+                )
 
-    ax.grid(True, alpha=0.3, linestyle='--', linewidth=0.5)
-    ax.tick_params(axis='both', which='major', labelsize=TICK_LABELSIZE)
+    ax.grid(True, alpha=0.3, linestyle="--", linewidth=0.5)
+    ax.tick_params(axis="both", which="major", labelsize=TICK_LABELSIZE)
 
 
 # ── Helper: draw Delta cell ────────────────────────────────────────────────
 def _draw_delta_cell(ax, data):
     """Draw observed (black markers) + model (colored lines) delta curves."""
     obs_df = data["observed"]["delta"]
-    ax.plot(obs_df["mean_bin"], obs_df["mean_effect"],
-            color='black', linestyle='-', linewidth=2,
-            marker='o', markersize=4)
+    ax.plot(
+        obs_df["mean_bin"],
+        obs_df["mean_effect"],
+        color="black",
+        linestyle="-",
+        linewidth=2,
+        marker="o",
+        markersize=4,
+    )
 
     for model_name in models:
         if model_name not in data.get("models", {}):
             continue
         pred_df = data["models"][model_name]["delta"]
         c = MODEL_COLORS.get(model_name, "#aaaaaa")
-        ax.plot(pred_df["mean_bin"], pred_df["mean_effect"],
-                color=c, linestyle='--', linewidth=2)
+        ax.plot(
+            pred_df["mean_bin"],
+            pred_df["mean_effect"],
+            color=c,
+            linestyle="--",
+            linewidth=2,
+        )
 
-    ax.axhline(0, color='gray', linestyle=':', linewidth=0.8, alpha=0.7)
-    ax.grid(True, alpha=0.3, linestyle='--', linewidth=0.5)
-    ax.tick_params(axis='both', which='major', labelsize=TICK_LABELSIZE)
+    ax.axhline(0, color="gray", linestyle=":", linewidth=0.8, alpha=0.7)
+    ax.grid(True, alpha=0.3, linestyle="--", linewidth=0.5)
+    ax.tick_params(axis="both", which="major", labelsize=TICK_LABELSIZE)
 
 
 # ── Helper: label study on leftmost column ─────────────────────────────────
@@ -156,10 +172,12 @@ def _set_xlabel(ax, label: str):
     ax.set_xlabel(label, fontsize=9)
 
 
-def _compute_axis_limits() -> Tuple[Tuple[float, float] | None, Dict[str, Tuple[float, float]]]:
+def _compute_axis_limits() -> tuple[
+    tuple[float, float] | None, dict[str, tuple[float, float]]
+]:
     """Compute shared CAF limits and per-study Delta limits."""
     caf_ylim = None
-    delta_ylims: Dict[str, Tuple[float, float]] = {}
+    delta_ylims: dict[str, tuple[float, float]] = {}
 
     y_min_all, y_max_all = np.inf, -np.inf
     for study in studies:
@@ -197,10 +215,10 @@ def _draw_section_grid(
     spec,
     section_name: str,
     x_label: str,
-    caf_ylim: Tuple[float, float] | None,
-    delta_ylims: Dict[str, Tuple[float, float]],
+    caf_ylim: tuple[float, float] | None,
+    delta_ylims: dict[str, tuple[float, float]],
     *,
-    delta_row_ylims: Dict[int, Tuple[float, float]] | None = None,
+    delta_row_ylims: dict[int, tuple[float, float]] | None = None,
     wspace: float = 0.12,
     hspace: float = 0.25,
 ):
@@ -219,15 +237,15 @@ def _draw_section_grid(
             section_axes[i, j] = ax
 
             if i == 0:
-                ax.set_title(task, fontsize=12, fontweight='bold', pad=6)
+                ax.set_title(task, fontsize=12, fontweight="bold", pad=6)
             if j == 0:
                 _set_study_label(ax, study)
             if i == len(studies) - 1:
                 _set_xlabel(ax, x_label)
             else:
-                ax.tick_params(axis='x', labelbottom=False)
+                ax.tick_params(axis="x", labelbottom=False)
             if j != 0:
-                ax.tick_params(axis='y', labelleft=False)
+                ax.tick_params(axis="y", labelleft=False)
 
             if task not in structured[study]:
                 _hide_empty_cell(ax)
@@ -242,7 +260,9 @@ def _draw_section_grid(
                 _draw_delta_cell(ax, data)
                 if delta_row_ylims and i in delta_row_ylims:
                     ax.set_ylim(*delta_row_ylims[i])
-                    ax.set_yticks(np.arange(delta_row_ylims[i][0], delta_row_ylims[i][1] + 1, 50))
+                    ax.set_yticks(
+                        np.arange(delta_row_ylims[i][0], delta_row_ylims[i][1] + 1, 50)
+                    )
                 elif study in delta_ylims:
                     ax.set_ylim(*delta_ylims[study])
 
@@ -268,13 +288,13 @@ def _add_panel_label(fig, axes, label: str, *, y_offset: float = 0.03):
         y1 + y_offset,
         label,
         fontsize=24,
-        fontweight='bold',
-        ha='right',
-        va='center',
+        fontweight="bold",
+        ha="right",
+        va="center",
     )
 
 
-def _legend_line(fig, x0, x1, y, color, linestyle='-', marker=None):
+def _legend_line(fig, x0, x1, y, color, linestyle="-", marker=None):
     """Draw a legend sample line in figure coordinates."""
     line = mlines.Line2D(
         [x0, x1],
@@ -290,7 +310,7 @@ def _legend_line(fig, x0, x1, y, color, linestyle='-', marker=None):
     fig.add_artist(line)
 
 
-def _legend_text(fig, x, y, label, *, weight='normal', ha='left'):
+def _legend_text(fig, x, y, label, *, weight="normal", ha="left"):
     """Draw legend text in figure coordinates."""
     fig.text(
         x,
@@ -299,7 +319,7 @@ def _legend_text(fig, x, y, label, *, weight='normal', ha='left'):
         fontsize=11,
         fontweight=weight,
         ha=ha,
-        va='center',
+        va="center",
     )
 
 
@@ -308,7 +328,7 @@ def _draw_shared_legend(
     *,
     y_mid: float,
     y_gap: float = 0.008,
-    x_positions: Dict[str, float] | None = None,
+    x_positions: dict[str, float] | None = None,
 ):
     """Draw the shared Data and Model legend without automatic padding."""
     y_top = y_mid + y_gap
@@ -328,26 +348,28 @@ def _draw_shared_legend(
     if x_positions:
         x.update(x_positions)
 
-    _legend_text(fig, x["data_title"], y_mid, 'Data', weight='bold')
-    _legend_line(fig, x["obs_line0"], x["obs_line1"], y_mid, 'black', marker='o')
-    _legend_text(fig, x["obs_text"], y_mid, 'Observed')
-    _legend_line(fig, x["cond_line0"], x["cond_line1"], y_top, 'gray', linestyle='-')
-    _legend_text(fig, x["cond_text"], y_top, 'Congruent')
-    _legend_line(fig, x["cond_line0"], x["cond_line1"], y_bottom, 'gray', linestyle='--')
-    _legend_text(fig, x["cond_text"], y_bottom, 'Incongruent')
+    _legend_text(fig, x["data_title"], y_mid, "Data", weight="bold")
+    _legend_line(fig, x["obs_line0"], x["obs_line1"], y_mid, "black", marker="o")
+    _legend_text(fig, x["obs_text"], y_mid, "Observed")
+    _legend_line(fig, x["cond_line0"], x["cond_line1"], y_top, "gray", linestyle="-")
+    _legend_text(fig, x["cond_text"], y_top, "Congruent")
+    _legend_line(
+        fig, x["cond_line0"], x["cond_line1"], y_bottom, "gray", linestyle="--"
+    )
+    _legend_text(fig, x["cond_text"], y_bottom, "Incongruent")
 
-    _legend_text(fig, x["model_title"], y_mid, 'Model', weight='bold')
+    _legend_text(fig, x["model_title"], y_mid, "Model", weight="bold")
     model_positions = {
-        'DDM': (x["model_col1_line0"], y_top),
-        'DMC': (x["model_col1_line0"], y_bottom),
-        'SSP': (x["model_col2_line0"], y_top),
-        'DSTP': (x["model_col2_line0"], y_bottom),
+        "DDM": (x["model_col1_line0"], y_top),
+        "DMC": (x["model_col1_line0"], y_bottom),
+        "SSP": (x["model_col2_line0"], y_top),
+        "DSTP": (x["model_col2_line0"], y_bottom),
     }
     for model_name in DESIRED_MODEL_ORDER:
         if model_name not in models:
             continue
         x, y = model_positions[model_name]
-        _legend_line(fig, x, x + 0.040, y, MODEL_COLORS.get(model_name, '#aaaaaa'))
+        _legend_line(fig, x, x + 0.040, y, MODEL_COLORS.get(model_name, "#aaaaaa"))
         _legend_text(fig, x + 0.055, y, model_name)
 
 
@@ -379,18 +401,18 @@ def build_vertical_figure():
         (spacer_pos.y0 + spacer_pos.y1) / 2 - 0.005,
         "Delta Plots",
         fontsize=SECTION_LABEL_FONTSIZE,
-        fontweight='bold',
-        ha='center',
-        va='center',
+        fontweight="bold",
+        ha="center",
+        va="center",
     )
     fig.text(
         0.5,
         0.965,
-        'CAF',
+        "CAF",
         fontsize=16,
-        fontweight='bold',
-        ha='center',
-        va='center',
+        fontweight="bold",
+        ha="center",
+        va="center",
     )
     _add_panel_label(fig, axes_caf, "A", y_offset=0.045)
     _add_panel_label(fig, axes_delta, "B", y_offset=0.045)
@@ -415,13 +437,25 @@ def build_horizontal_figure():
     )
 
     axes_caf = _draw_section_grid(
-        fig, gs[0, 0], "CAF", "RT Bin / Quantile", caf_ylim, delta_ylims,
-        wspace=0.12, hspace=0.28,
+        fig,
+        gs[0, 0],
+        "CAF",
+        "RT Bin / Quantile",
+        caf_ylim,
+        delta_ylims,
+        wspace=0.12,
+        hspace=0.28,
     )
     axes_delta = _draw_section_grid(
-        fig, gs[0, 1], "Delta", "Mean RT (ms)", caf_ylim, delta_ylims,
+        fig,
+        gs[0, 1],
+        "Delta",
+        "Mean RT (ms)",
+        caf_ylim,
+        delta_ylims,
         delta_row_ylims={0: (0, 230), 1: (0, 230), 2: (0, 130)},
-        wspace=0.12, hspace=0.28,
+        wspace=0.12,
+        hspace=0.28,
     )
 
     for title, axes in [("CAF", axes_caf), ("Delta Plots", axes_delta)]:
@@ -431,9 +465,9 @@ def build_horizontal_figure():
             y1 + 0.070,
             title,
             fontsize=SECTION_LABEL_FONTSIZE,
-            fontweight='bold',
-            ha='center',
-            va='center',
+            fontweight="bold",
+            ha="center",
+            va="center",
         )
 
     _add_panel_label(fig, axes_caf, "A", y_offset=0.075)
@@ -458,19 +492,26 @@ def build_horizontal_figure():
     return fig
 
 
-def _save_figure(fig, output_base: str):
+def _save_figure(fig, output_base: Path, *, selectable: bool = False):
     """Save a figure as SVG and PNG."""
     out_base = Path(output_base)
     out_svg = out_base.with_suffix(".svg")
     out_png = out_base.with_suffix(".png")
+    out_svg.parent.mkdir(parents=True, exist_ok=True)
 
-    fig.savefig(out_svg, bbox_inches='tight')
-    svgtxt = out_svg.read_text(encoding='utf-8')
+    if selectable:
+        plt.rcParams["svg.fonttype"] = "none"
+    fig.savefig(out_svg, bbox_inches="tight", facecolor="white")
+    svgtxt = out_svg.read_text(encoding="utf-8")
+    if 'style="fill: #ffffff"' not in svgtxt:
+        svg_start = svgtxt.find(">")
+        white_background = '\n<rect width="100%" height="100%" fill="white"/>'
+        svgtxt = svgtxt[: svg_start + 1] + white_background + svgtxt[svg_start + 1 :]
     out_svg.write_text(
         "\n".join(line.rstrip() for line in svgtxt.splitlines()) + "\n",
-        encoding='utf-8',
+        encoding="utf-8",
     )
-    fig.savefig(out_png, dpi=300, bbox_inches='tight')
+    fig.savefig(out_png, dpi=300, bbox_inches="tight", facecolor="white")
     plt.close(fig)
 
     print(f"Saved: {out_svg}")
@@ -485,8 +526,24 @@ def parse_args():
     parser.add_argument(
         "--layout",
         choices=["vertical", "horizontal", "both"],
-        default="both",
-        help="Which layout to generate. Default: both.",
+        default="horizontal",
+        help="Which layout to generate. Default: horizontal.",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=MAIN_FIGURES_DIR,
+        help="Directory for SVG and PNG outputs.",
+    )
+    parser.add_argument(
+        "--output-stem",
+        default="figure_03_posterior_predictive_checks",
+        help="Filename stem. Layout suffixes are added when --layout=both.",
+    )
+    parser.add_argument(
+        "--outline-text",
+        action="store_true",
+        help="Convert SVG text to paths instead of keeping editable text.",
     )
     return parser.parse_args()
 
@@ -494,10 +551,29 @@ def parse_args():
 def main():
     """Generate the requested PPC figure layout(s)."""
     args = parse_args()
+    output_dir = args.output_dir.resolve()
     if args.layout in {"vertical", "both"}:
-        _save_figure(build_vertical_figure(), "../figs/24_ppc_combined_fig3")
+        stem = (
+            f"{args.output_stem}_vertical"
+            if args.layout == "both"
+            else args.output_stem
+        )
+        _save_figure(
+            build_vertical_figure(),
+            output_dir / stem,
+            selectable=not args.outline_text,
+        )
     if args.layout in {"horizontal", "both"}:
-        _save_figure(build_horizontal_figure(), "../figs/24_ppc_combined_fig3_horizontal")
+        stem = (
+            f"{args.output_stem}_horizontal"
+            if args.layout == "both"
+            else args.output_stem
+        )
+        _save_figure(
+            build_horizontal_figure(),
+            output_dir / stem,
+            selectable=not args.outline_text,
+        )
 
 
 if __name__ == "__main__":

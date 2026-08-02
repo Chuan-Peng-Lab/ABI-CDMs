@@ -11,7 +11,15 @@ pacman::p_load(
   brms,      # Bayesian modeling
   psych      # For initial test-retest ICC calculation
 )
-bruceR::set_wd()
+source_path <- tryCatch(sys.frame(1)$ofile, error = function(error) NULL)
+script_dir <- if (is.null(source_path)) {
+  normalizePath("scripts/07_parameter_analysis", mustWork = TRUE)
+} else {
+  normalizePath(dirname(source_path), mustWork = TRUE)
+}
+repo_root <- normalizePath(file.path(script_dir, "..", ".."), mustWork = TRUE)
+intermediate_dir <- file.path(repo_root, "results", "intermediate")
+dir.create(intermediate_dir, recursive = TRUE, showWarnings = FALSE)
 
 # Global Settings
 GLOBAL_SEED <- 20260218
@@ -19,7 +27,7 @@ set.seed(GLOBAL_SEED)
 CORES <- 4
 THREADS_PER_CORE <- 16 # Adjust based on your CPU, or remove threading() in models if using rstan
 
-# Note: If you do not have cmdstanr installed, remove the `backend = "cmdstanr"` 
+# Note: If you do not have cmdstanr installed, remove the `backend = "cmdstanr"`
 # line from the model functions below, or install it via:
 # library(cmdstanr); install_cmdstan()
 
@@ -27,21 +35,21 @@ THREADS_PER_CORE <- 16 # Adjust based on your CPU, or remove threading() in mode
 # 2. Data Preprocessing Functions ----------------------------------------------
 
 #' Prepare Data for Analysis (Wide to Long & Z-score)
-prep_analysis_data <- function(data, 
-                               factor_cols = c("Processing Efficiency", "Decision Caution", 
+prep_analysis_data <- function(data,
+                               factor_cols = c("Processing Efficiency", "Decision Caution",
                                                "Non-decision time", "Inhibitory process"),
                                id_cols = c("subject_id", "task_id", "author_year", "task_name")) {
-  
+
   long_data <- data %>%
-    pivot_longer(cols = all_of(factor_cols), 
-                 names_to = "Factor_Type", 
+    pivot_longer(cols = all_of(factor_cols),
+                 names_to = "Factor_Type",
                  values_to = "Raw_Value") %>%
     mutate(Factor_Type = as.factor(Factor_Type)) %>%
     # Standardize (Z-score) within each Factor_Type
     group_by(Factor_Type) %>%
     mutate(Value = as.numeric(scale(Raw_Value))) %>%
     ungroup()
-  
+
   return(long_data)
 }
 
@@ -62,21 +70,21 @@ preprocess_cognitive_data <- function(data) {
 
 #' Calculate Test-Retest ICC for Each Subgroup
 calculate_subgroup_iccs <- function(data) {
-  
+
   get_psych_icc <- function(d) {
     d_wide <- d %>%
       select(subject_id, session_id, Value) %>%
       pivot_wider(names_from = session_id, values_from = Value) %>%
-      select(-subject_id) 
-    
+      select(-subject_id)
+
     if(ncol(d_wide) < 2 || nrow(d_wide) < 5) return(NA)
-    
+
     tryCatch({
-      res <- psych::ICC(d_wide, missing = FALSE, lmer = FALSE) 
+      res <- psych::ICC(d_wide, missing = FALSE, lmer = FALSE)
       return(res$results["Single_fixed_raters", "ICC"])
     }, error = function(e) return(NA))
   }
-  
+
   data %>%
     group_by(author_year, task_name, Factor_Type) %>%
     nest() %>%
@@ -200,19 +208,19 @@ calculate_pairwise_stats <- function(data, icc_col = "ICC") {
 #' @param seed Random seed for reproducibility.
 #' @param iter Number of iterations per chain (default: 5000).
 #' @param threads_per_core Threads per core for cmdstanr threading (default: THREADS_PER_CORE).
-fit_icc_model <- function(data, cores, seed, iter = 5000, 
+fit_icc_model <- function(data, cores, seed, iter = 5000,
                           threads_per_core = THREADS_PER_CORE) {
   f <- bf(
-    Value_Scaled ~ 0 + Factor_Type:task_name + 
-      (0 + Factor_Type | author_year) + 
+    Value_Scaled ~ 0 + Factor_Type:task_name +
+      (0 + Factor_Type | author_year) +
       (0 + Factor_Type | unique_subj_id),
     sigma ~ 0 + Factor_Type:task_name
   )
-  
+
   brm(
     formula = f,
     data = data,
-    family = student(), 
+    family = student(),
     chains = 4,
     cores = cores,
     threads = threading(threads_per_core),
@@ -220,7 +228,7 @@ fit_icc_model <- function(data, cores, seed, iter = 5000,
     seed = seed,
     control = list(adapt_delta = 0.95),
     backend = "cmdstanr",
-    file = "44_icc_model_fitted.rds" # Auto-saves/loads cache
+    file = file.path(intermediate_dir, "cross_task_icc_model")
   )
 }
 
@@ -230,28 +238,28 @@ fit_icc_model <- function(data, cores, seed, iter = 5000,
 #' @param cores Number of CPU cores.
 #' @param seed Random seed.
 #' @param threads_per_core Threads per core for cmdstanr threading.
-fit_reliability_meta_model <- function(icc_data, cores, seed, 
+fit_reliability_meta_model <- function(icc_data, cores, seed,
                                        threads_per_core = THREADS_PER_CORE) {
   f <- bf(ICC_FisherZ ~ 0 + Factor_Type + (1 | task_name) + (1 | author_year))
-  
+
   priors <- c(
     set_prior("normal(0, 1)", class = "b"),
     set_prior("cauchy(0, 0.5)", class = "sd")
   )
-  
+
   brm(
     formula = f,
     data = icc_data,
     family = gaussian(),
     prior = priors,
     cores = cores,
-    chains = 4, 
+    chains = 4,
     iter = 5000,
     threads = threading(threads_per_core),
     control = list(adapt_delta = 0.98),
     seed = seed,
     backend = "cmdstanr",
-    file = "44_reliability_meta_model.rds"
+    file = file.path(intermediate_dir, "reliability_meta_model")
   )
 }
 
@@ -261,44 +269,44 @@ fit_reliability_meta_model <- function(icc_data, cores, seed,
 #' @param cores Number of CPU cores.
 #' @param seed Random seed.
 #' @param threads_per_core Threads per core for cmdstanr threading.
-fit_task_fixed_meta_model <- function(icc_data, cores, seed, 
+fit_task_fixed_meta_model <- function(icc_data, cores, seed,
                                       threads_per_core = THREADS_PER_CORE) {
   f <- bf(ICC_FisherZ ~ 0 + task_name + (1 | author_year) + (1 | Factor_Type))
-  
+
   priors <- c(
     set_prior("normal(0, 1)", class = "b"),
     set_prior("cauchy(0, 0.5)", class = "sd")
   )
-  
+
   brm(
     formula = f,
     data = icc_data,
     family = gaussian(),
     prior = priors,
-    cores = cores, 
-    chains = 4, 
+    cores = cores,
+    chains = 4,
     iter = 5000,
     threads = threading(threads_per_core),
     control = list(adapt_delta = 0.98),
     seed = seed,
     backend = "cmdstanr",
-    file = "44_task_reliability_meta_model.rds"
+    file = file.path(intermediate_dir, "task_reliability_meta_model")
   )
 }
 
 
 # 4. Execution Pipeline --------------------------------------------------------
 # Guard: Only run the pipeline when this script is executed directly (e.g., via Rscript).
-# When source()'d from 44_factor_analysis.Rmd, only the function definitions above are loaded.
+# When sourced from analyze_factor_reliability.Rmd, only the functions above are loaded.
 if (sys.nframe() == 0) {
 
 cat("Starting Execution Pipeline...\n")
 
 # --- Dataset 1: Cross-Task Data ---
 cat("Loading and processing cross-task data...\n")
-df_cross <- read.csv("./43_subj_indices_with_EFA_scores.csv", check.names = FALSE)
-selected_cross <- df_cross %>% select(subject_id, task_id, author_year, task_name, 
-                                      `Processing Efficiency`, `Decision Caution`, 
+df_cross <- read.csv(file.path(intermediate_dir, "factor_scores.csv"), check.names = FALSE)
+selected_cross <- df_cross %>% select(subject_id, task_id, author_year, task_name,
+                                      `Processing Efficiency`, `Decision Caution`,
                                       `Non-decision time`, `Inhibitory process`)
 
 df_long_cross <- prep_analysis_data(selected_cross)
@@ -306,9 +314,9 @@ df_long_clean <- preprocess_cognitive_data(df_long_cross)
 
 # --- Dataset 2: Temporal (Test-Retest) Data ---
 cat("Loading and processing temporal test-retest data...\n")
-df_retest <- read.csv("./43_subj_indices_with_EFA_scores_retest.csv", check.names = FALSE)
-selected_retest <- df_retest %>% select(subject_id, session_id, task_id, author_year, task_name, 
-                                        `Processing Efficiency`, `Decision Caution`, 
+df_retest <- read.csv(file.path(intermediate_dir, "factor_scores_retest.csv"), check.names = FALSE)
+selected_retest <- df_retest %>% select(subject_id, session_id, task_id, author_year, task_name,
+                                        `Processing Efficiency`, `Decision Caution`,
                                         `Non-decision time`, `Inhibitory process`)
 
 df_long_retest <- prep_analysis_data(selected_retest, id_cols = c("subject_id", "session_id", "task_id", "author_year", "task_name"))

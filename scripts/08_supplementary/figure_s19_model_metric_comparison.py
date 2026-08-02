@@ -7,13 +7,12 @@ Normalizes column naming, computes RMSE/G-square/aBIC model comparison
 summaries by task and dataset, and generates a supplementary figure.
 
 Input:
-  - 23model_prediction_indices_dmc_v2.csv
+  - results/intermediate/model_prediction_indices_extended_dmc.csv
 
 Output:
   - 33_model_metric_supplement.csv
-  - figs/S_model_metrics_rmse_gsquare_abic.svg  & .png
+  - figures/supplement/figure_s19_model_metric_comparison.svg and .png
 """
-import sys
 import warnings
 from pathlib import Path
 
@@ -25,12 +24,18 @@ import seaborn as sns
 warnings.filterwarnings("ignore")
 
 from nsbi_module.study_labels import format_author_year
+from nsbi_module.project_paths import (
+    INTERMEDIATE_DIR,
+    SUPPLEMENT_FIGURES_DIR,
+    TABLES_DIR,
+    ensure_output_directories,
+)
 
 plt.rcParams["font.sans-serif"] = ["Arial", "Arial Unicode MS", "DejaVu Sans"]
 plt.rcParams["axes.unicode_minus"] = False
 sns.set_style("white")
 
-INPUT_CSV = "../03_fitting/23model_prediction_indices_dmc_v2.csv"
+INPUT_CSV = INTERMEDIATE_DIR / "model_prediction_indices_extended_dmc.csv"
 MODELS_MAIN = ["DSTP", "DMC", "SSP", "DDM"]
 CRITERIA = ["RMSE", "g_square", "aBIC"]
 MODEL_COLORS = {
@@ -63,7 +68,7 @@ def load_and_normalize():
         df["chi_square"] = df["g_square"]
 
     # Backfill g_square from chi_square where g_square is NaN
-    # (主模型行 g_square 为 NaN 但 chi_square 有值，二者是等价的 G-square 统计量)
+    # The main-model rows may store the equivalent G-square value only in chi_square.
     if "chi_square" in df.columns and "g_square" in df.columns:
         n_backfilled = df["g_square"].isna() & df["chi_square"].notna()
         df.loc[n_backfilled, "g_square"] = df.loc[n_backfilled, "chi_square"]
@@ -187,6 +192,7 @@ def plot_multi_criterion(summary_df, save_svg, save_png):
 # 4. Main
 # ---------------------------------------------------------------------------
 def main():
+    ensure_output_directories()
     print("=" * 60)
     print("  PHASE 5: BIC/G-SQUARE SUPPLEMENT")
     print("=" * 60)
@@ -207,15 +213,15 @@ def main():
         print(f"  {criterion}: dominant model = {max_row['model']} "
               f"({max_row['winner_prop']*100:.1f}%)")
 
-    csv_path = "33_model_metric_supplement.csv"
+    csv_path = TABLES_DIR / "figure_s19_model_metric_comparison.csv"
     summary_df.to_csv(csv_path, index=False)
     print(f"  Saved: {csv_path} ({summary_df.shape[0]} rows)")
 
     print("\n[3/3] Generating figure...")
     plot_multi_criterion(
         summary_df,
-        save_svg="../figs/S_model_metrics_rmse_gsquare_abic.svg",
-        save_png="../figs/S_model_metrics_rmse_gsquare_abic.png",
+        save_svg=SUPPLEMENT_FIGURES_DIR / "figure_s19_model_metric_comparison.svg",
+        save_png=SUPPLEMENT_FIGURES_DIR / "figure_s19_model_metric_comparison.png",
     )
 
     print("\n  PHASE 5 COMPLETE.")

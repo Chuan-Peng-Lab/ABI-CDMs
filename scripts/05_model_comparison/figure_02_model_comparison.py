@@ -9,10 +9,8 @@ Two layouts supported:
   2x3 – 2 rows × 3 columns (landscape)
 
 Usage:
-    python 32fig2_v8_combined.py                  # default: 2x3
-    python 32fig2_v8_combined.py --layout 3x2     # 3x2 only
-    python 32fig2_v8_combined.py --layout 2x3     # 2x3 only
-    python 32fig2_v8_combined.py --layout both    # both layouts
+    python scripts/05_model_comparison/figure_02_model_comparison.py
+    python scripts/05_model_comparison/figure_02_model_comparison.py --layout 3x2
 """
 
 import argparse
@@ -26,7 +24,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-import sys
+from nsbi_module.project_paths import INTERMEDIATE_DIR, MAIN_FIGURES_DIR
 from nsbi_module.utils_ind_diff import (
     add_subplot_label,
     apply_nature_bar_axis_style,
@@ -42,7 +40,7 @@ from nsbi_module.utils_ind_diff import (
     rank_models_by_metric,
     summarize_model_performance,
 )
-from nsbi_module.study_labels import format_study_label, format_study_abbrev
+from nsbi_module.study_labels import format_study_abbrev, format_study_label
 
 warnings.filterwarnings("ignore")
 
@@ -115,10 +113,20 @@ def set_axis_text_sizes(ax, tick_size=None, text_size=None):
             text.set_fontsize(text_size)
 
 
+def raise_axis_frame_above_bars(ax, bar_zorder=3):
+    """Keep the axis frame (spines + tick marks) visible above bar patches."""
+    frame_zorder = bar_zorder + 1
+    for spine in ax.spines.values():
+        spine.set_zorder(frame_zorder)
+    ax.tick_params(axis="both", zorder=frame_zorder)
+
+
 # ---------------------------------------------------------------------------
 # 2. Shared data preparation for model comparison (A & B)
 # ---------------------------------------------------------------------------
-model_prediction_indices_long = pd.read_csv("../03_fitting/23model_prediction_indices_dmc_v2.csv")
+model_prediction_indices_long = pd.read_csv(
+    INTERMEDIATE_DIR / "model_prediction_indices_extended_dmc.csv"
+)
 model_prediction_indices_long = model_prediction_indices_long.query(
     "author_year != 'lee2025'"
 )
@@ -197,7 +205,9 @@ df_par_cross["author_year"] = df_par_cross["author_year"].apply(format_study_abb
 # ---------------------------------------------------------------------------
 # 4. Retest consistency data (E & F)
 # ---------------------------------------------------------------------------
-model_prediction_indices_retest = pd.read_csv("../03_fitting/23model_prediction_indices_retest.csv")
+model_prediction_indices_retest = pd.read_csv(
+    INTERMEDIATE_DIR / "model_prediction_indices_retest.csv"
+)
 best_model_retest = get_best_model_by_metric(
     model_prediction_indices_retest,
     group=["subject_id", "task_id", "author_year", "task_name", "session_id"],
@@ -416,6 +426,7 @@ def build_figure_3x2():
     ax_c.tick_params(axis="x", labelsize=FONT["axis_label"])
     for patch in ax_c.patches:
         patch.set_zorder(3)
+    raise_axis_frame_above_bars(ax_c)
 
     ax_d = fig.add_subplot(gs[1, 1])
     plot_stacked_consistency(
@@ -449,6 +460,7 @@ def build_figure_3x2():
     ax_e.tick_params(axis="x", labelsize=FONT["axis_label"])
     for patch in ax_e.patches:
         patch.set_zorder(3)
+    raise_axis_frame_above_bars(ax_e)
 
     # F pie grid
     f_pos = gs[2, 1].get_position(fig)
@@ -527,6 +539,7 @@ def build_figure_2x3():
     ax_c.tick_params(axis="x", labelsize=FONT["axis_label"])
     for patch in ax_c.patches:
         patch.set_zorder(3)
+    raise_axis_frame_above_bars(ax_c)
 
     # ── Row 0 col 2: E ──────────────────────────────────────────────────────
     ax_e = fig.add_subplot(gs[0, 2])
@@ -545,6 +558,7 @@ def build_figure_2x3():
     ax_e.tick_params(axis="x", labelsize=FONT["axis_label"])
     for patch in ax_e.patches:
         patch.set_zorder(3)
+    raise_axis_frame_above_bars(ax_e)
 
     # ── Row 1 col 0: B ──────────────────────────────────────────────────────
     ax_b = fig.add_subplot(gs[1, 0])
@@ -613,14 +627,19 @@ def build_figure_2x3():
 # 7. Save & CLI
 # ---------------------------------------------------------------------------
 
-def save_figure(fig, layout_name):
-    """Save figure to SVG and PNG with layout-aware filenames."""
-    out_svg = f"../figs/32fig2_v8_combined_{layout_name}.svg"
-    out_png = f"../figs/32fig2_v8_combined_{layout_name}.png"
+def save_figure(fig, layout_name, output_stem="figure_02_model_comparison"):
+    """Save the manuscript figure with a semantic, layout-aware filename."""
+    MAIN_FIGURES_DIR.mkdir(parents=True, exist_ok=True)
+    stem = output_stem if layout_name == "2x3" else f"{output_stem}_{layout_name}"
+    out_svg = MAIN_FIGURES_DIR / f"{stem}.svg"
+    out_png = MAIN_FIGURES_DIR / f"{stem}.png"
 
-    plt.savefig(out_svg, bbox_inches="tight")
+    # Explicit white background so the SVG is never transparent (matches the
+    # matplotlib PNG export and the other figures). Without this, matplotlib's
+    # SVG writer emits no background rect -> transparent canvas in browsers/Word.
+    fig.savefig(out_svg, bbox_inches="tight", facecolor="white")
     strip_trailing_whitespace(out_svg)
-    plt.savefig(out_png, dpi=300, bbox_inches="tight")
+    fig.savefig(out_png, dpi=300, bbox_inches="tight")
     plt.close(fig)
 
     print(f"Saved: {out_svg}")
@@ -642,7 +661,15 @@ if __name__ == "__main__":
         default="2x3",
         help="Which layout(s) to generate (default: 2x3).",
     )
+    parser.add_argument(
+        "--outline-text",
+        action="store_true",
+        help="Convert SVG text to paths instead of keeping editable text.",
+    )
     args = parser.parse_args()
+
+    if not args.outline_text:
+        plt.rcParams["svg.fonttype"] = "none"
 
     if args.layout == "both":
         for name in ["2x3", "3x2"]:

@@ -22,12 +22,12 @@ from matplotlib.gridspec import GridSpec, GridSpecFromSubplotSpec
 from scipy import stats
 from scipy.stats import gaussian_kde
 
+from nsbi_module.project_paths import INTERMEDIATE_DIR, MAIN_FIGURES_DIR, REPO_ROOT, ensure_output_directories
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-PROJECT_DIR = SCRIPT_DIR.parent
-FIG_DIR = PROJECT_DIR / "figs"
-EXPORT_DIR = SCRIPT_DIR / "44_fig4_reliability_exports"
-R_EXPORT_SCRIPT = SCRIPT_DIR / "44_export_fig4_reliability_data.R"
+FIG_DIR = MAIN_FIGURES_DIR
+EXPORT_DIR = INTERMEDIATE_DIR / "figure_04_reliability"
+R_EXPORT_SCRIPT = SCRIPT_DIR / "export_figure_04_reliability_data.R"
 
 FACTOR_CAUTION = "Decision Caution"
 FACTOR_NDT = "Non-decision time"
@@ -55,6 +55,16 @@ SOURCE_COLORS = {
     "Labs": "#81cef0",
     "Tasks": "#95d8c3",
 }
+STUDY_ABBREVIATIONS = {
+    "Clayson2025": "C25",
+    "Eisenberg2019": "E19",
+    "Hedge2018": "H18",
+    "Kucina2023": "K23",
+    "Lee2025": "L25",
+    "Reymermet2018": "R18",
+    "Ulrich2015": "U15",
+    "Whitehead2019": "W19",
+}
 
 PALETTE = sns.color_palette("husl", 20)
 PALETTE_TASK = [PALETTE[0], PALETTE[12], PALETTE[14]]
@@ -71,7 +81,7 @@ def run_r_export() -> None:
     """Regenerate the CSV inputs used by the top-row reliability panels."""
     subprocess.run(
         ["Rscript", str(R_EXPORT_SCRIPT)],
-        cwd=SCRIPT_DIR,
+        cwd=REPO_ROOT,
         check=True,
     )
 
@@ -283,12 +293,12 @@ def plot_fig8a_temporal_icc(fig: plt.Figure, cell, subgroup_iccs: pd.DataFrame) 
 def plot_fig8b_sd_comparison(ax: plt.Axes, sd_draws: pd.DataFrame) -> None:
     """Plot Fig8b: posterior SD distributions for task and lab effects."""
     df = sd_draws.copy()
-    source_map = {"Tasks": "Across Tasks", "Labs": "Across Labs"}
+    source_map = {"Tasks": "Across Tasks", "Labs": "Across Studies"}
     df["Source"] = df["Source"].map(source_map)
-    order = ["Across Tasks", "Across Labs"]
+    order = ["Across Tasks", "Across Studies"]
     palette = {
         "Across Tasks": SOURCE_COLORS["Tasks"],
-        "Across Labs": SOURCE_COLORS["Labs"],
+        "Across Studies": SOURCE_COLORS["Labs"],
     }
 
     sns.violinplot(
@@ -421,7 +431,7 @@ def plot_distance_comparison(distance_df: pd.DataFrame, ax: plt.Axes) -> plt.Axe
     """Draw the task-vs-lab centroid distance panel."""
     df = distance_df.copy()
     df["Grouping"] = df["Grouping"].map(
-        {"task_name": "Across Tasks", "author_year": "Across Labs"}
+        {"task_name": "Across Tasks", "author_year": "Across Studies"}
     )
     sns.boxplot(
         x="Grouping",
@@ -512,16 +522,22 @@ def plot_factor_row(
 
 def load_factor_space_data() -> pd.DataFrame:
     """Load the EFA factor-space data used by the original Fig10 script."""
-    df = pd.read_csv(SCRIPT_DIR / "43_subj_indices_with_EFA_scores.csv")
+    df = pd.read_csv(INTERMEDIATE_DIR / "factor_scores.csv")
     df["task_name"] = df["task_name"].str.capitalize()
-    df["author_year"] = df["author_year"].str.capitalize()
+    df["author_year"] = (
+        df["author_year"]
+        .str.capitalize()
+        .replace(STUDY_ABBREVIATIONS)
+    )
     return df
 
 
 def build_figure(
     run_export: bool = True,
     output_stem: str = "44fig4_v8_combined_3x3",
-    figsize: tuple[float, float] = (8.0, 9.0),
+    selectable: bool = False,
+    layout: str = "full",
+    figsize: tuple[float, float] | None = None,
     width_ratios: tuple[float, float, float] = (3.0, 3.0, 2.0),
     height_ratios: tuple[float, float, float] = (1.35, 1.0, 1.0),
     wspace: float = 0.34,
@@ -529,112 +545,167 @@ def build_figure(
     font_scale: float = 1.08,
     point_size: float | None = 18,
     row_title_y_offset: float = 0.055,
-    bottom_margin: float = 0.20,
+    bottom_margin: float | None = None,
     task_legend_anchor: tuple[float, float] = (0.25, 0.145),
     lab_legend_anchor: tuple[float, float] = (0.66, 0.145),
     legend_font_scale: float = 0.92,
     legend_loc: str = "upper center",
 ) -> plt.Figure:
-    """Build and save the complete v8 Fig4 3x3 figure."""
-    configure_style(font_scale=font_scale, point_size=point_size)
-    if run_export:
-        run_r_export()
-    require_reliability_exports()
+    """Build and save the full, reliability-only, or factor-space layout."""
+    ensure_output_directories()
+    valid_layouts = {"full", "reliability", "factor"}
+    if layout not in valid_layouts:
+        choices = ", ".join(sorted(valid_layouts))
+        raise ValueError(f"Unknown layout '{layout}'. Choose from: {choices}.")
 
-    icc_draws = pd.read_csv(EXPORT_DIR / "fig9b_cross_task_icc_draws.csv")
-    temporal_icc = pd.read_csv(EXPORT_DIR / "fig8a_temporal_icc_subgroups.csv")
-    sd_draws = pd.read_csv(EXPORT_DIR / "fig8b_temporal_sd_draws.csv")
-    factor_df = load_factor_space_data()
+    configure_style(font_scale=font_scale, point_size=point_size)
+    include_reliability = layout in {"full", "reliability"}
+    include_factor = layout in {"full", "factor"}
+
+    if run_export and include_reliability:
+        run_r_export()
+    if include_reliability:
+        require_reliability_exports()
+        icc_draws = pd.read_csv(EXPORT_DIR / "fig9b_cross_task_icc_draws.csv")
+        temporal_icc = pd.read_csv(EXPORT_DIR / "fig8a_temporal_icc_subgroups.csv")
+        sd_draws = pd.read_csv(EXPORT_DIR / "fig8b_temporal_sd_draws.csv")
+    if include_factor:
+        factor_df = load_factor_space_data()
 
     sns.set_theme(style="white", context="paper")
+    if figsize is None:
+        figsize = {
+            "full": (8.0, 9.0),
+            "reliability": (8.0, 3.0),
+            "factor": (8.0, 6.0),
+        }[layout]
+
     fig = plt.figure(figsize=figsize, constrained_layout=False)
+    n_rows = {"full": 3, "reliability": 1, "factor": 2}[layout]
+    grid_kwargs = {
+        "figure": fig,
+        "width_ratios": width_ratios,
+        "wspace": wspace,
+        "hspace": hspace,
+    }
+    if layout == "full":
+        grid_kwargs["height_ratios"] = height_ratios
     gs = GridSpec(
+        n_rows,
         3,
-        3,
-        figure=fig,
-        width_ratios=width_ratios,
-        height_ratios=height_ratios,
-        wspace=wspace,
-        hspace=hspace,
+        **grid_kwargs,
     )
 
-    ax_a = fig.add_subplot(gs[0, 0])
-    plot_fig9b_icc_ridge(ax_a, icc_draws)
-    add_panel_label(ax_a, "B")
+    if include_reliability:
+        ax_a = fig.add_subplot(gs[0, 0])
+        plot_fig9b_icc_ridge(ax_a, icc_draws)
+        add_panel_label(ax_a, "B")
 
-    plot_fig8a_temporal_icc(fig, gs[0, 1], temporal_icc)
+        plot_fig8a_temporal_icc(fig, gs[0, 1], temporal_icc)
 
-    ax_c = fig.add_subplot(gs[0, 2])
-    plot_fig8b_sd_comparison(ax_c, sd_draws)
-    add_panel_label(ax_c, "D")
+        ax_c = fig.add_subplot(gs[0, 2])
+        plot_fig8b_sd_comparison(ax_c, sd_draws)
+        add_panel_label(ax_c, "D")
 
-    row_2_axes = (fig.add_subplot(gs[1, 0]), fig.add_subplot(gs[1, 1]), fig.add_subplot(gs[1, 2]))
-    row_3_axes = (fig.add_subplot(gs[2, 0]), fig.add_subplot(gs[2, 1]), fig.add_subplot(gs[2, 2]))
+    if include_factor:
+        factor_start_row = 1 if layout == "full" else 0
+        factor_panel_labels = (
+            (("E", "F", "G"), ("H", "I", "J"))
+            if layout == "full"
+            else (("A", "B", "C"), ("D", "E", "F"))
+        )
+        row_2_axes = tuple(
+            fig.add_subplot(gs[factor_start_row, col])
+            for col in range(3)
+        )
+        row_3_axes = tuple(
+            fig.add_subplot(gs[factor_start_row + 1, col])
+            for col in range(3)
+        )
 
-    task_handles, lab_handles = plot_factor_row(
-        row_2_axes,
-        factor_df,
-        FACTOR_CAUTION,
-        FACTOR_NDT,
-        ("E", "F", "G"),
-    )
-    task_handles_2, lab_handles_2 = plot_factor_row(
-        row_3_axes,
-        factor_df,
-        FACTOR_EFFICIENCY,
-        FACTOR_INHIBITION,
-        ("H", "I", "J"),
+        task_handles, lab_handles = plot_factor_row(
+            row_2_axes,
+            factor_df,
+            FACTOR_CAUTION,
+            FACTOR_NDT,
+            factor_panel_labels[0],
+        )
+        task_handles_2, lab_handles_2 = plot_factor_row(
+            row_3_axes,
+            factor_df,
+            FACTOR_EFFICIENCY,
+            FACTOR_INHIBITION,
+            factor_panel_labels[1],
+        )
+
+        task_handles = task_handles or task_handles_2
+        lab_handles = lab_handles or lab_handles_2
+
+    if bottom_margin is None:
+        bottom_margin = 0.20 if include_factor else 0.16
+    fig.subplots_adjust(
+        left=0.075,
+        right=0.985,
+        top=0.975,
+        bottom=bottom_margin,
     )
 
-    task_handles = task_handles or task_handles_2
-    lab_handles = lab_handles or lab_handles_2
-
-    fig.subplots_adjust(left=0.075, right=0.985, top=0.975, bottom=bottom_margin)
-    add_row_title(
-        fig,
-        row_2_axes,
-        "Factor Space 1: Decision Caution x Non-decision Time",
-        y_offset=row_title_y_offset,
-    )
-    add_row_title(
-        fig,
-        row_3_axes,
-        "Factor Space 2: Processing Efficiency x Inhibitory Process",
-        y_offset=row_title_y_offset,
-    )
-    task_legend = fig.legend(
-        handles=task_handles,
-        loc=legend_loc,
-        bbox_to_anchor=task_legend_anchor,
-        ncol=len(task_handles),
-        fontsize=LEGEND_FONTSIZE * legend_font_scale,
-        title="Tasks",
-        title_fontsize=(LEGEND_FONTSIZE + 1) * legend_font_scale,
-        frameon=False,
-        columnspacing=1.0,
-        handletextpad=0.45,
-        labelspacing=0.35,
-    )
-    lab_legend = fig.legend(
-        handles=lab_handles,
-        loc=legend_loc,
-        bbox_to_anchor=lab_legend_anchor,
-        ncol=4,
-        fontsize=LEGEND_FONTSIZE * legend_font_scale,
-        title="Labs / Studies",
-        title_fontsize=(LEGEND_FONTSIZE + 1) * legend_font_scale,
-        frameon=False,
-        columnspacing=0.9,
-        handletextpad=0.4,
-        labelspacing=0.3,
-    )
-    clean_legend(task_legend)
-    clean_legend(lab_legend)
+    if include_factor:
+        add_row_title(
+            fig,
+            row_2_axes,
+            "Factor Space 1: Decision Caution x Non-decision Time",
+            y_offset=row_title_y_offset,
+        )
+        add_row_title(
+            fig,
+            row_3_axes,
+            "Factor Space 2: Processing Efficiency x Inhibitory Process",
+            y_offset=row_title_y_offset,
+        )
+        task_legend = fig.legend(
+            handles=task_handles,
+            loc=legend_loc,
+            bbox_to_anchor=task_legend_anchor,
+            ncol=len(task_handles),
+            fontsize=LEGEND_FONTSIZE * legend_font_scale,
+            title="Tasks",
+            title_fontsize=(LEGEND_FONTSIZE + 1) * legend_font_scale,
+            frameon=False,
+            columnspacing=1.0,
+            handletextpad=0.45,
+            labelspacing=0.35,
+        )
+        lab_legend = fig.legend(
+            handles=lab_handles,
+            loc=legend_loc,
+            bbox_to_anchor=lab_legend_anchor,
+            ncol=4,
+            fontsize=LEGEND_FONTSIZE * legend_font_scale,
+            title="Studies",
+            title_fontsize=(LEGEND_FONTSIZE + 1) * legend_font_scale,
+            frameon=False,
+            columnspacing=0.9,
+            handletextpad=0.4,
+            labelspacing=0.3,
+        )
+        clean_legend(task_legend)
+        clean_legend(lab_legend)
 
     FIG_DIR.mkdir(parents=True, exist_ok=True)
     out_svg = FIG_DIR / f"{output_stem}.svg"
     out_png = FIG_DIR / f"{output_stem}.png"
-    fig.savefig(out_svg, bbox_inches="tight")
+    if selectable:
+        # Keep text as real <text> (selectable/editable/searchable). Must be set
+        # AFTER sns.set_theme() above, which resets rcParams and would otherwise
+        # revert svg.fonttype back to the default 'path'.
+        plt.rcParams["svg.fonttype"] = "none"
+    fig.savefig(out_svg, bbox_inches="tight", facecolor="white")
+    svg_text = out_svg.read_text(encoding="utf-8")
+    out_svg.write_text(
+        "\n".join(line.rstrip() for line in svg_text.splitlines()) + "\n",
+        encoding="utf-8",
+    )
     fig.savefig(out_png, dpi=300, bbox_inches="tight")
     print(f"Saved: {out_svg}")
     print(f"Saved: {out_png}")
@@ -650,16 +721,22 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--output-stem",
-        default="44fig4_v8_combined_3x3",
-        help="Output filename stem under ../figs.",
+        default="figure_04_05_panels",
+        help="Output filename stem under figures/main.",
+    )
+    parser.add_argument(
+        "--layout",
+        choices=("full", "reliability", "factor"),
+        default="full",
+        help="Panel layout: full B-J grid, reliability B-D, or factor-space E-J.",
     )
     parser.add_argument(
         "--figsize",
         nargs=2,
         type=float,
-        default=(8, 9),
+        default=None,
         metavar=("WIDTH", "HEIGHT"),
-        help="Figure size in inches. Default: 8 9.",
+        help="Figure size in inches. Defaults depend on --layout.",
     )
     parser.add_argument(
         "--width-ratios",
@@ -687,7 +764,12 @@ def parse_args() -> argparse.Namespace:
         default=0.055,
         help="Figure-coordinate offset above each Fig10 row for the row title.",
     )
-    parser.add_argument("--bottom-margin", type=float, default=0.20, help="Bottom margin reserved for legends.")
+    parser.add_argument(
+        "--bottom-margin",
+        type=float,
+        default=None,
+        help="Bottom figure margin. Defaults depend on --layout.",
+    )
     parser.add_argument(
         "--task-legend-anchor",
         nargs=2,
@@ -702,7 +784,7 @@ def parse_args() -> argparse.Namespace:
         type=float,
         default=(0.66, 0.145),
         metavar=("X", "Y"),
-        help="Figure-coordinate anchor for the Labs / Studies legend.",
+        help="Figure-coordinate anchor for the Studies legend.",
     )
     parser.add_argument(
         "--legend-font-scale",
@@ -715,15 +797,25 @@ def parse_args() -> argparse.Namespace:
         default="upper center",
         help="Matplotlib legend loc for bottom legends. Default aligns legend tops.",
     )
+    parser.add_argument(
+        "--selectable",
+        action="store_true",
+        help="Keep SVG text editable/searchable without changing the output name. "
+             "PDF; depends on Arial/Segoe UI being installed on the viewer.",
+    )
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
+    if args.selectable:
+        plt.rcParams["svg.fonttype"] = "none"
     build_figure(
         run_export=not args.skip_r_export,
         output_stem=args.output_stem,
-        figsize=tuple(args.figsize),
+        selectable=args.selectable,
+        layout=args.layout,
+        figsize=tuple(args.figsize) if args.figsize else None,
         width_ratios=tuple(args.width_ratios),
         height_ratios=tuple(args.height_ratios),
         wspace=args.wspace,

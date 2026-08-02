@@ -14,10 +14,11 @@ file_arg <- grep("^--file=", cmd_args, value = TRUE)
 script_path <- if (length(file_arg) > 0) {
   sub("^--file=", "", file_arg[[1]])
 } else {
-  "44_export_fig4_reliability_data.R"
+  "export_figure_04_reliability_data.R"
 }
 script_dir <- dirname(normalizePath(script_path))
-setwd(script_dir)
+repo_root <- normalizePath(file.path(script_dir, "..", ".."), mustWork = TRUE)
+intermediate_dir <- file.path(repo_root, "results", "intermediate")
 
 prep_analysis_data <- function(data,
                                factor_cols = c("Processing Efficiency", "Decision Caution",
@@ -111,11 +112,11 @@ get_posterior_icc <- function(model) {
     select(.draw, Factor_Type, ICC_conditional, ICC_marginal)
 }
 
-out_dir <- file.path(script_dir, "44_fig4_reliability_exports")
+out_dir <- file.path(intermediate_dir, "figure_04_reliability")
 dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 
 message("Preparing test-retest ICC data...")
-df_retest <- read.csv("43_subj_indices_with_EFA_scores_retest.csv", check.names = FALSE)
+df_retest <- read.csv(file.path(intermediate_dir, "factor_scores_retest.csv"), check.names = FALSE)
 selected_retest <- df_retest %>%
   select(subject_id, session_id, task_id, author_year, task_name,
          `Processing Efficiency`, `Decision Caution`,
@@ -132,7 +133,7 @@ subgroup_iccs <- calculate_subgroup_iccs(df_long_retest) %>%
   )
 
 message("Loading cached cross-task ICC model...")
-icc_model_fitted <- readRDS("44_icc_model_fitted.rds")
+icc_model_fitted <- readRDS(file.path(intermediate_dir, "cross_task_icc_model.rds"))
 icc_draws <- get_posterior_icc(icc_model_fitted) %>%
   mutate(
     ICC = ICC_conditional,
@@ -147,7 +148,7 @@ icc_draws <- get_posterior_icc(icc_model_fitted) %>%
   select(.draw, Factor_Type, ICC)
 
 message("Loading cached temporal reliability model...")
-meta_model <- readRDS("44_reliability_meta_model.rds")
+meta_model <- readRDS(file.path(intermediate_dir, "reliability_meta_model.rds"))
 sd_draws <- meta_model %>%
   spread_draws(sd_author_year__Intercept, sd_task_name__Intercept) %>%
   rename(Labs = sd_author_year__Intercept, Tasks = sd_task_name__Intercept) %>%

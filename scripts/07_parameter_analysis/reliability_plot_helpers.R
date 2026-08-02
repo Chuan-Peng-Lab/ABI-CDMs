@@ -1,7 +1,7 @@
 # ==============================================================================
-# Script: 44_viz_functions.R
-# Purpose: Visualization functions for factor analysis report (44_factor_analysis.Rmd).
-#          Source this file after 44_fitting_models.R.
+# Script: reliability_plot_helpers.R
+# Purpose: Visualization functions for the factor reliability report.
+#          Source this file after fit_reliability_models.R.
 # ==============================================================================
 
 # Canonical factor display names (used by plot_icc_ridge and plot_icc_forest)

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
 
 
 import matplotlib.pyplot as plt
@@ -11,16 +10,9 @@ import pandas as pd
 import pingouin as pg
 from sklearn.preprocessing import StandardScaler
 
-import sys
+from nsbi_module.project_paths import INTERMEDIATE_DIR, SUPPLEMENT_FIGURES_DIR, ensure_output_directories
 from nsbi_module.utils_ind_diff import *
 
-ipython = globals().get("get_ipython")
-if ipython:
-    ipython.run_line_magic("load_ext", "autoreload")
-    ipython.run_line_magic("autoreload", "2")
-
-
-# In[2]:
 
 
 MODELS = ['DDM', 'SSP', 'DMC', 'DSTP']
@@ -30,7 +22,6 @@ COLORS_DARKER = ['#9dd25b', '#6fc96f', '#75cfb6', '#4dc3eb']
 MODEL_COLORS_DARKER = dict(zip(MODELS, COLORS_DARKER))
 
 
-# In[3]:
 
 
 def plot_bars(
@@ -346,14 +337,13 @@ def plot_cognitive_processes_box(
 
 # ## Cross task analysis
 
-# In[4]:
 
 
-subj_indices = pd.read_csv("43_subj_indices_with_EFA_scores.csv")
+ensure_output_directories()
+subj_indices = pd.read_csv(INTERMEDIATE_DIR / "factor_scores.csv")
 subj_indices.head()
 
 
-# In[5]:
 
 
 four_factors_names = [
@@ -363,7 +353,6 @@ df = subj_indices[["subject_id", "task_id", "author_year", "task_name", *four_fa
 fig, axes = plot_cognitive_processes_box(df)
 
 
-# In[6]:
 
 
 # it will cost 16 seconds
@@ -372,14 +361,14 @@ df_dict = {key_i:tmp_subj_indices.query("author_year == @key_i") for key_i in ['
 
 factor_vars = {
     "Decision Caution": [
-        "$a|DDM$", "$a|SSP$", "$a|DSTP$", "$a|DMC$", 
+        "$a|DDM$", "$a|SSP$", "$a|DSTP$", "$a|DMC$",
     ],
     "Non-decision time": [
         "$t|DDM$", "$t|SSP$", "$t|DSTP$", "$t|DMC$"
     ],
     "Processing Efficiency": [
-        "$v_{cong}|DDM$", "$p|SSP$", "$v_{c}|DMC$", 
-        "$v_{ss}|DSTP$", "$v_{p2}|DSTP$","$v_{ta}|DSTP$", 
+        "$v_{cong}|DDM$", "$p|SSP$", "$v_{c}|DMC$",
+        "$v_{ss}|DSTP$", "$v_{p2}|DSTP$","$v_{ta}|DSTP$",
     ],
     "Inhibitory process": [
         "$v_{incong}|DDM$", "$sd_a|SSP$", "$r_d|SSP$", "$\\tau|DMC$", "$\\alpha|DMC$", "$\\eta|DMC$", "$v_{fl}|DSTP$"
@@ -388,11 +377,11 @@ factor_vars = {
 
 ignore_cols_1 = ['task_id', 'author_year']
 icc_long_format = process_icc_data(
-    data=df_dict,                     
-    contrast_col='task_name',        
+    data=df_dict,
+    contrast_col='task_name',
     ignore_cols=ignore_cols_1,
     key_label='author_year',
-    factor_vars=factor_vars          
+    factor_vars=factor_vars
 )
 
 # icc_wide = icc_long_format.pivot(index='parameter', columns='author_year', values='ICC')
@@ -400,26 +389,23 @@ icc_long_format['author_year'] = icc_long_format['author_year'].apply(format_aut
 icc_long_format
 
 
-# In[8]:
 
 
 sns.set_style("white")
 g = plot_icc_distribution(icc_long_format.query("ICC > 0"), palette=MODEL_COLORS_DARKER)
 plt.tight_layout()
-plt.savefig("../figs/41_parameters_icc_cross_task.svg", format="svg", bbox_inches="tight")
+plt.savefig(SUPPLEMENT_FIGURES_DIR / "parameter_icc_cross_task.svg", format="svg", bbox_inches="tight")
 
 
 # ## Retest
 
-# In[9]:
 
 
-subj_indices_retest = pd.read_csv("../03_fitting/23subj_indices_across_models_and_tasks_retest.csv")
+subj_indices_retest = pd.read_csv(INTERMEDIATE_DIR / "subject_indices_retest.csv")
 subj_indices_retest = subj_indices_retest.query("author_year != 'lee2025'")
 subj_indices_retest.head()
 
 
-# In[10]:
 
 
 factor_vars = {
@@ -428,7 +414,7 @@ factor_vars = {
         "$v_{ss}|DSTP$", "$v_{ta}|DSTP$", "$v_{fl}|DSTP$"
     ],
     "Caution": [
-        "$a|DDM$", "$a|SSP$", "$a|DSTP$", "$a|DMC$", 
+        "$a|DDM$", "$a|SSP$", "$a|DSTP$", "$a|DMC$",
     ],
     "Non_decision_time": [
         "$t|DDM$", "$t|SSP$", "$t|DSTP$", "$t|DMC$"
@@ -441,7 +427,6 @@ factor_vars = {
 subj_indices_retest = process_factor_scores(subj_indices_retest, factor_vars=factor_vars)
 
 
-# In[11]:
 
 
 ignore_cols_2 = ["task_id", "session_id", "author_year", "task_name", "subject_id"]
@@ -449,14 +434,14 @@ regex_config = (r'([a-z]+[0-9]{4})([a-z]+)', ['author_year', 'task_name'])
 
 factor_vars = {
     "Caution": [
-        "$a|DDM$", "$a|SSP$", "$a|DSTP$", "$a|DMC$", 
+        "$a|DDM$", "$a|SSP$", "$a|DSTP$", "$a|DMC$",
     ],
     "Non_decision_time": [
         "$t|DDM$", "$t|SSP$", "$t|DSTP$", "$t|DMC$"
     ],
     "Control_process": [
-        "$v_{cong}|DDM$", "$p|SSP$", "$v_{c}|DMC$", 
-        "$v_{ss}|DSTP$", "$v_{p2}|DSTP$","$v_{ta}|DSTP$", 
+        "$v_{cong}|DDM$", "$p|SSP$", "$v_{c}|DMC$",
+        "$v_{ss}|DSTP$", "$v_{p2}|DSTP$","$v_{ta}|DSTP$",
     ],
     "Automated_process": [
         "$v_{incong}|DDM$", "$sd_a|SSP$", "$r_d|SSP$", "$\\tau|DMC$", "$\\alpha|DMC$", "$\\eta|DMC$", "$v_{fl}|DSTP$"
@@ -464,26 +449,22 @@ factor_vars = {
 }
 
 icc_retest_long = process_icc_data(
-    data=subj_indices_retest,         
-    group_col='task_id',              
-    contrast_col='session_id',        
+    data=subj_indices_retest,
+    group_col='task_id',
+    contrast_col='session_id',
     ignore_cols=ignore_cols_2,
     regex_extract=regex_config,
-    factor_vars=factor_vars      
+    factor_vars=factor_vars
 )
 icc_retest_long['author_year'] = icc_retest_long['author_year'].apply(format_author_year)
 icc_retest_long['task_name'] = icc_retest_long['task_name'].apply(format_task_name)
 
 
-# In[12]:
 
 
 g = plot_icc_distribution(icc_retest_long.query("ICC > 0"), palette=MODEL_COLORS_DARKER, row_col="task_name", height=2, aspect=1.1)
 plt.tight_layout()
-plt.savefig("../figs/41_parameters_icc_cross_temporal.svg", format="svg", bbox_inches="tight")
-
-
-# In[ ]:
+plt.savefig(SUPPLEMENT_FIGURES_DIR / "parameter_icc_cross_temporal.svg", format="svg", bbox_inches="tight")
 
 
 

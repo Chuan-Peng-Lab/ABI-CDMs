@@ -12,10 +12,9 @@ Uses 24_ppc_process_data_dict.pkl which stores:
 
 Output:
   - 33_ppc_component_metrics.csv
-  - figs/S_ppc_component_metrics.svg  & .png
+  - figures/supplement/figure_s18_ppc_component_metrics.svg and .png
 """
 import pickle
-import sys
 import warnings
 from pathlib import Path
 
@@ -24,6 +23,13 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from sklearn.linear_model import LinearRegression
+
+from nsbi_module.project_paths import (
+    INTERMEDIATE_DIR,
+    SUPPLEMENT_FIGURES_DIR,
+    TABLES_DIR,
+    ensure_output_directories,
+)
 
 warnings.filterwarnings("ignore")
 
@@ -36,7 +42,7 @@ MODEL_COLORS = {
     "DMC": "#95d8c3", "DSTP": "#81cef0",
 }
 MODELS = ["DSTP", "DMC", "SSP", "DDM"]
-PPC_PKL = "../06_ppc/24_ppc_process_data_dict.pkl"
+PPC_PKL = INTERMEDIATE_DIR / "ppc_data.pkl"
 
 
 def strip_trailing_whitespace(path):
@@ -174,18 +180,19 @@ def plot_component_metrics(df, save_svg, save_png):
 # 3. Main
 # ---------------------------------------------------------------------------
 def main():
+    ensure_output_directories()
     print("=" * 60)
     print("  PHASE 4: COMPONENT-WISE PPC METRICS")
     print("=" * 60)
 
     print("\n[1/3] Loading PPC plotting data...")
-    with open(PPC_PKL, "rb") as f:
+    with PPC_PKL.open("rb") as f:
         plotting_data = pickle.load(f)
     print(f"  Loaded {len(plotting_data)} datasets.")
 
     print("\n[2/3] Computing component metrics...")
     df = compute_component_metrics(plotting_data)
-    csv_path = "33_ppc_component_metrics.csv"
+    csv_path = TABLES_DIR / "figure_s18_ppc_component_metrics.csv"
     df.to_csv(csv_path, index=False)
     print(f"  Saved: {csv_path} ({df.shape[0]} rows)")
 
@@ -203,8 +210,8 @@ def main():
     print("\n[3/3] Generating figure...")
     plot_component_metrics(
         df,
-        save_svg="../figs/S_ppc_component_metrics.svg",
-        save_png="../figs/S_ppc_component_metrics.png",
+        save_svg=SUPPLEMENT_FIGURES_DIR / "figure_s18_ppc_component_metrics.svg",
+        save_png=SUPPLEMENT_FIGURES_DIR / "figure_s18_ppc_component_metrics.png",
     )
 
     print("\n  PHASE 4 COMPLETE.")

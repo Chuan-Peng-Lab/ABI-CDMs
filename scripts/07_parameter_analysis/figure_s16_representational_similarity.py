@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[ ]:
 
 
 import pandas as pd
@@ -17,19 +16,12 @@ from itertools import combinations
 from scipy import stats
 warnings.filterwarnings('ignore')
 
-import sys
+from nsbi_module.project_paths import INTERMEDIATE_DIR, SUPPLEMENT_FIGURES_DIR, TABLES_DIR, ensure_output_directories
 from nsbi_module.utils_ind_diff import *
 
 
 sns.set_style("white")
 
-ipython = globals().get("get_ipython")
-if ipython:
-    ipython.run_line_magic("load_ext", "autoreload")
-    ipython.run_line_magic("autoreload", "2")
-
-
-# In[2]:
 
 
 def wrap_parameter(param):
@@ -86,7 +78,7 @@ def get_cluster_projection(df: pd.DataFrame, method='t-SNE', random_state=42):
     Returns
     -------
     pd.DataFrame
-        A copy of the original DataFrame with added projection coordinates 
+        A copy of the original DataFrame with added projection coordinates
         and LaTeX-formatted column names.
     """
     # 1. Scaling
@@ -170,8 +162,8 @@ def analyze_group_distances(df, method='t-SNE', group_cols=['task_name', 'author
 
     return results, pd.DataFrame(distance_data)
 
-def plot_cluster_comparison(df_with_coords, method='t-SNE', facet_groupby=['task_name', 'author_year'], 
-                            figsize=(18, 6), alpha=0.3, save_path=None, label_fontsize=17, palette='tab20', ax=None, first_legend_pos='upper right', first_legend_bbox=None, 
+def plot_cluster_comparison(df_with_coords, method='t-SNE', facet_groupby=['task_name', 'author_year'],
+                            figsize=(18, 6), alpha=0.3, save_path=None, label_fontsize=17, palette='tab20', ax=None, first_legend_pos='upper right', first_legend_bbox=None,
                             legend_fontsize = None, second_legend_pos='center left'):
     """
     Generate side-by-side comparison plots for cluster projections.
@@ -207,7 +199,7 @@ def plot_cluster_comparison(df_with_coords, method='t-SNE', facet_groupby=['task
         else:
             # ax is a single axis object
             axes = [ax] if n_groups == 1 else [ax] + [None]*(n_groups-1)
-        fig = None 
+        fig = None
     else:
         # Create new figure and axes if none provided
         fig, axes = plt.subplots(1, n_groups, figsize=figsize)
@@ -230,7 +222,7 @@ def plot_cluster_comparison(df_with_coords, method='t-SNE', facet_groupby=['task
         col_prefix = method.lower().replace('-', '')
         x_col, y_col = f'{col_prefix}_1', f'{col_prefix}_2'
         sns.scatterplot(
-            data=df_with_coords, x=x_col, y=y_col, 
+            data=df_with_coords, x=x_col, y=y_col,
             hue=group_col, ax=target_ax, alpha=alpha, palette=palette
         )
         # target_ax.set_title(f'Colored by {group_col.replace("_", " ").title()}')
@@ -252,7 +244,7 @@ def plot_combined_panel(df_with_coords, dist_df, save_path=None, figsize=(12, 4)
     """
     Combine cluster comparison and distance comparison into a single figure.
 
-    Layout: 
+    Layout:
     - Panel A: Two Cluster plots (t-SNE/UMAP)
     - Panel B: One Distance comparison Boxplot
 
@@ -272,7 +264,7 @@ def plot_combined_panel(df_with_coords, dist_df, save_path=None, figsize=(12, 4)
     # 1. Create a figure with a grid layout (1 row, 3 columns)
     # Using width_ratios to make the boxplot slightly narrower (0.8) for aesthetics
     fig = plt.figure(figsize=(12, 4))
-    gs_main = GridSpec(1, 4, figure=fig, width_ratios=[1, 1, 0.15, 0.8])    
+    gs_main = GridSpec(1, 4, figure=fig, width_ratios=[1, 1, 0.15, 0.8])
     gs_left = GridSpecFromSubplotSpec(1, 2, subplot_spec=gs_main[0, :2], wspace=0.3)
 
     ax1 = fig.add_subplot(gs_left[0, 0])
@@ -282,37 +274,37 @@ def plot_combined_panel(df_with_coords, dist_df, save_path=None, figsize=(12, 4)
     # 2. Plot Panel A (Cluster Comparison)
     # Pass the first two axes (axes[0] and axes[1]) to the cluster function
     plot_cluster_comparison(
-        df_with_coords, 
-        method='t-SNE', 
+        df_with_coords,
+        method='t-SNE',
         facet_groupby=['task_name', 'author_year'],
-        ax=[ax1, ax2], 
+        ax=[ax1, ax2],
         alpha=0.5
     )
     handles, labels = ax2.get_legend_handles_labels()
     legend_bbox = ax2.get_position()
     legend_x = legend_bbox.x1
-    legend_y = legend_bbox.y0 + legend_bbox.height/2 
-    fig.legend(handles, labels, 
-            loc='center left', 
-            bbox_to_anchor=(legend_x, legend_y),  
+    legend_y = legend_bbox.y0 + legend_bbox.height/2
+    fig.legend(handles, labels,
+            loc='center left',
+            bbox_to_anchor=(legend_x, legend_y),
             fontsize=7)
     ax2.get_legend().remove()
 
     # 3. Plot Panel B (Distance Comparison)
     # Pass the third axis (axes[2]) to the distance function
     plot_distance_comparison(
-        dist_df, 
+        dist_df,
         ax=ax3,
         stat_test='mannwhitneyu'
     )
 
     # 4. Add Labels A and B
     # Label "A" placed on the first plot (covers the first two visually)
-    ax1.text(-0.2, 1.05, 'A', transform=ax1.transAxes, 
+    ax1.text(-0.2, 1.05, 'A', transform=ax1.transAxes,
                  fontsize=24, fontweight='bold', va='bottom', ha='right')
 
     # Label "B" placed on the third plot
-    ax3.text(-0.2, 1.05, 'B', transform=ax3.transAxes, 
+    ax3.text(-0.2, 1.05, 'B', transform=ax3.transAxes,
                  fontsize=24, fontweight='bold', va='bottom', ha='right')
 
     # 5. Final Adjustments
@@ -326,34 +318,32 @@ def plot_combined_panel(df_with_coords, dist_df, save_path=None, figsize=(12, 4)
     plt.show()
 
 
-# In[3]:
 
 
-indices_by_subj = pd.read_csv("23subj_indices_across_models_and_tasks.csv")
+ensure_output_directories()
+indices_by_subj = pd.read_csv(INTERMEDIATE_DIR / "subject_indices.csv")
 indices_by_subj.head()
 
 
 # ## Cluster plots
 
 # To analyze the distances between groups in the t-SNE space and compare the variability of `task_name` versus `author_year`, we should calculate the **centroids** (mean positions) of each group and then compute the **pairwise Euclidean distances** between these centroids.
-# 
+#
 # To support your hypothesis that **author variation is greater than task variation**, look for the following in the output:
-# 
+#
 # 1. **Mean Pairwise Distance:** If the mean distance between `author_year` centroids is significantly higher than the mean distance between `task_name` centroids, it indicates that "Authors" (studies) occupy more distinct/distant regions of the latent space than the "Tasks" themselves.
 # 2. **Distance Distribution (Boxplot):**
 # * If the box for `author_year` is positioned higher on the Y-axis than `task_name`, it proves that different studies are more "dissimilar" to each other than different tasks are.
 # * This often suggests a **"Lab Effect"** or "Study Effect," where the methodology or population of a specific author influences the data more than the nature of the cognitive task.
-# 
-# 
+#
+#
 # 3. **Mathematical Note:** The distance calculated is the  norm between the mean coordinates  of group  and group :
 
-# In[4]:
 
 
 # df_with_coords[["task_id","author_year","task_name","tsne_1","tsne_2"]]
 
 
-# In[5]:
 
 
 # df_with_coords = get_cluster_projection(indices_by_subj, method='UMAP')
@@ -370,49 +360,45 @@ for group, data in dist_results.items():
 dist_df.sort_values(by='Distance', ascending=False).head(10)
 
 
-# In[10]:
 
 
 sns.set_style("white")
 plot_cluster_comparison(
-    df_with_coords, 
-    method='t-SNE', 
+    df_with_coords,
+    method='t-SNE',
     facet_groupby=['task_name', 'author_year'],
     figsize=(11.7, 3.5),
-    alpha=0.4,      
+    alpha=0.4,
     first_legend_pos = "center right",
     first_legend_bbox = (1.52, 0.5),
     legend_fontsize = 23,
 )
 plt.tight_layout()
 plt.subplots_adjust(wspace=0.8)
-plt.savefig('../figs/42_cluster_plot_tSNE.svg', format='svg', bbox_inches='tight')
+plt.savefig(SUPPLEMENT_FIGURES_DIR / "figure_s16_tsne_clusters.svg", format='svg', bbox_inches='tight')
 
 
-# In[7]:
 
 
 # plot_cluster_comparison(
-#     df_with_coords, 
-#     method='t-SNE', 
+#     df_with_coords,
+#     method='t-SNE',
 #     facet_groupby=['task_name', 'author_year'],
 #     figsize=(10.5, 3.5),
-#     alpha=0.5,        
-#     save_path='../figs/42_cluster_plot_tSNE.svg'
+#     alpha=0.5,
 # )
 
 # plot_distance_comparison(dist_df)
 
 plot_combined_panel(
-    df_with_coords=df_with_coords, 
-    dist_df=dist_df, 
-    save_path='../figs/42task_variance_tSNE_cluster.svg'
+    df_with_coords=df_with_coords,
+    dist_df=dist_df,
+    save_path=SUPPLEMENT_FIGURES_DIR / "figure_s16_tsne_task_variance.svg"
 )
 
 
 # ## RSA analysis
 
-# In[36]:
 
 
 from scipy.stats import spearmanr
@@ -524,14 +510,12 @@ def plot_rsa_heatmap(rsa_df, ax=None, figsize=(6, 5), save_path=None):
 
 # ### author_year
 
-# In[54]:
 
 
 data_list, names = extract_fitted_datasets(indices_by_subj, groups="author_year")
 rdms = compute_rdms(data_list, method = "correlation")
 
 
-# In[109]:
 
 
 fig, ax, ret_val = rsatoolbox.vis.show_rdm(
@@ -542,7 +526,6 @@ fig, ax, ret_val = rsatoolbox.vis.show_rdm(
 )
 
 
-# In[55]:
 
 
 # This uses Spearman correlation by default
@@ -553,14 +536,12 @@ mean_rsa_author = author_rsa_comparison_df.RSA.mean()
 
 # ### task_name
 
-# In[39]:
 
 
 data_list, names = extract_fitted_datasets(indices_by_subj, groups="task_name")
 rdms = compute_rdms(data_list, method = "correlation")
 
 
-# In[112]:
 
 
 fig, ax, ret_val = rsatoolbox.vis.show_rdm(
@@ -571,7 +552,6 @@ fig, ax, ret_val = rsatoolbox.vis.show_rdm(
 )
 
 
-# In[ ]:
 
 
 # This uses Spearman correlation by default
@@ -582,20 +562,17 @@ mean_rsa_task = task_rsa_comparison_df.RSA.mean()
 
 # ## Quantify weights difference between tasks and labs
 
-# In[15]:
 
 
 import arviz as az
 
 
-# In[9]:
 
 
 data_list, names = extract_fitted_datasets(indices_by_subj, groups="task_id")
 rdms = compute_rdms(data_list, method = "correlation")
 
 
-# In[10]:
 
 
 # This uses Spearman correlation by default
@@ -603,7 +580,6 @@ id_rsa_comparison_df = analyze_rdm_similarity(rdms)
 id_mean_rsa = id_rsa_comparison_df.RSA.mean()
 
 
-# In[ ]:
 
 
 def prepare_rsa_data(df):
@@ -652,24 +628,20 @@ def prepare_rsa_data(df):
     return data
 
 df_ready = prepare_rsa_data(id_rsa_comparison_df)
-# df_ready.to_csv("42_RSA_task_and_lab_difference.csv")
+df_ready.to_csv(
+    TABLES_DIR / "figure_s16_rsa_task_study_difference.csv",
+    index=False,
+)
 df_ready
 
 
-# In[3]:
 
 
-df_ready = pd.read_csv('42_RSA_task_and_lab_difference.csv')
-
-
-# In[ ]:
-
-
-def fit_rsa_model(df, 
+def fit_rsa_model(df,
                   formula="RSA_z ~ is_same_task + is_same_author + (1|Group_A) + (1|Group_B)",
                   save_name=None,
-                  draws=2000, 
-                  tune=1000, 
+                  draws=2000,
+                  tune=1000,
                   chains=4,
                   random_seed=42):
     """
@@ -712,9 +684,9 @@ def fit_rsa_model(df,
         print("Fitting model (this may take a minute)...")
         # 3. Fit Model
         idata = model.fit(
-            draws=draws, 
-            tune=tune, 
-            chains=chains, 
+            draws=draws,
+            tune=tune,
+            chains=chains,
             random_seed=random_seed,
             idata_kwargs={"log_likelihood": True}
         )
@@ -727,13 +699,12 @@ def fit_rsa_model(df,
     return model, idata
 
 model, idata = fit_rsa_model(
-    df_ready, 
+    df_ready,
     draws=4000, tune=2000, chains=4, # Low numbers for testing only
-    save_name="42_RSA_task_and_lab_difference" 
+    save_name=INTERMEDIATE_DIR / "figure_s16_rsa_task_study_difference"
 )
 
 
-# In[9]:
 
 
 summary_df = az.summary(idata, var_names=['Intercept', 'is_same_task', 'is_same_author'], hdi_prob=0.95)
@@ -741,16 +712,15 @@ summary_df = az.summary(idata, var_names=['Intercept', 'is_same_task', 'is_same_
 
 # ### plot and comparision
 
-# In[30]:
 
 
 sns.set_theme(style="white")
 COLORS_DARKER = ['#75cfb6', '#4dc3eb']
 
 def plot_effects_comparison(
-    idata, 
+    idata,
     colors=COLORS_DARKER,
-    save_path=None, 
+    save_path=None,
     figsize=(4, 4),
     ax=None,
     tick_label_size=14
@@ -789,7 +759,7 @@ def plot_effects_comparison(
         y="Effect Size",
         palette=colors,
         linewidth=1.5,
-        inner="quart", 
+        inner="quart",
         saturation=0.9,
         ax=ax
     )
@@ -856,11 +826,8 @@ def plot_effects_comparison(
 # plot_effects_comparison(idata)
 
 
-# In[56]:
 
 
-# plot_rsa_heatmap(author_rsa_comparison_df, save_path = "../figs/rsa_comparison_author_year.svg")
-# plot_rsa_heatmap(task_rsa_comparison_df, save_path = "../figs/rsa_comparison_task_name.svg", figsize=(5,4))
 
 author_rsa_comparison_df['Group_A'] = author_rsa_comparison_df['Group_A'].apply(format_author_year)
 author_rsa_comparison_df['Group_B'] = author_rsa_comparison_df['Group_B'].apply(format_author_year)
@@ -869,7 +836,6 @@ task_rsa_comparison_df['Group_A'] = task_rsa_comparison_df['Group_A'].apply(form
 task_rsa_comparison_df['Group_B'] = task_rsa_comparison_df['Group_B'].apply(format_task_name)
 
 
-# In[90]:
 
 
 def plot_merged_rsa(author_df, task_df, idata=None, colors=COLORS_DARKER, figsize=(18, 5), save_path=None):
@@ -885,7 +851,7 @@ def plot_merged_rsa(author_df, task_df, idata=None, colors=COLORS_DARKER, figsiz
     gs = GridSpec(1, 4, figure=fig, width_ratios=[1, 1, 0.13, 0.8])
 
     ax1 = fig.add_subplot(gs[0, 0])  # Author RSA (A)
-    ax2 = fig.add_subplot(gs[0, 1])  # Task RSA (B) 
+    ax2 = fig.add_subplot(gs[0, 1])  # Task RSA (B)
     ax3 = fig.add_subplot(gs[0, 3])  # Effects Comparison (C)
 
     # 2. Plot Author RSA (Subplot A)
@@ -928,22 +894,16 @@ def plot_merged_rsa(author_df, task_df, idata=None, colors=COLORS_DARKER, figsiz
         print(f"Merged plot saved to {save_path}")
 
 plot_merged_rsa(
-    author_rsa_comparison_df, 
-    task_rsa_comparison_df, 
-    idata=idata,  
-    save_path="../figs/42_merged_rsa_comparison.svg"
+    author_rsa_comparison_df,
+    task_rsa_comparison_df,
+    idata=idata,
+    save_path=SUPPLEMENT_FIGURES_DIR / "figure_s16_rsa_comparison.svg"
 )
 
 
-# In[119]:
 
 
 # output mean rsa for task and authors
 print(f"mean rsa for task and authors {mean_rsa_task:.3f} vs. {mean_rsa_author:.3f}")
-
-
-# In[ ]:
-
-
 
 

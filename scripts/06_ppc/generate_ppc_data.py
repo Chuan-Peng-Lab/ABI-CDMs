@@ -1,26 +1,24 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
 
 
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
-import sys
+import pickle
 
 from nsbi_module.NSBI_CDMs import NSBICDM, NSBICDMs
 from nsbi_module.utils import FitStore
 from nsbi_module.plotting import *
 from nsbi_module.utils_pydmc import Ob
+from nsbi_module.project_paths import (
+    CHECKPOINTS_DIR,
+    INTERMEDIATE_DIR,
+    SUPPLEMENT_FIGURES_DIR,
+    ensure_output_directories,
+)
 
-ipython = globals().get("get_ipython")
-if ipython:
-    ipython.run_line_magic("load_ext", "autoreload")
-    ipython.run_line_magic("autoreload", "2")
-
-
-# In[14]:
 
 
 # ─── Model palette ────────────────────────────────────────────────────────────
@@ -35,13 +33,12 @@ DEFAULT_TASKS      = ['flanker', 'simon', 'stroop']
 DEFAULT_TASK_ORDER = ['Flanker', 'Simon', 'Stroop']
 
 
-# In[2]:
 
 
-m_DDM = NSBICDM("DDM", checkpoint_path="../../checkpoints/DDM")
-m_DMC = NSBICDM("DMC", checkpoint_path="../../checkpoints/DMC")
-m_SSP = NSBICDM("SSP", checkpoint_path="../../checkpoints/SSP")
-m_DSTP = NSBICDM("DSTP", checkpoint_path="../../checkpoints/DSTP")
+m_DDM = NSBICDM("DDM", checkpoint_path=CHECKPOINTS_DIR / "DDM")
+m_DMC = NSBICDM("DMC", checkpoint_path=CHECKPOINTS_DIR / "DMC")
+m_SSP = NSBICDM("SSP", checkpoint_path=CHECKPOINTS_DIR / "SSP")
+m_DSTP = NSBICDM("DSTP", checkpoint_path=CHECKPOINTS_DIR / "DSTP")
 
 models = {
     "DDM": m_DDM,
@@ -55,11 +52,11 @@ CDMs_fit = NSBICDMs(models)
 
 # ## Load datasets
 
-# In[3]:
 
 
 df_dict = {}
-with pd.HDFStore("./21preprocessed_datasets.h5") as hdfstore:
+ensure_output_directories()
+with pd.HDFStore(INTERMEDIATE_DIR / "datasets_cross_sectional.h5") as hdfstore:
     for key in hdfstore.keys():
         key = key[1:]
         df_dict[key] = hdfstore[key]
@@ -67,10 +64,9 @@ df_dict.keys()
 
 
 # ## Generate posterior prediction
-# 
+#
 # It will cost 1 hour and 26 minutes to generate the posterior prediction.
 
-# In[4]:
 
 
 def generate_predictions(fit_store, n_samples_posterior=200, n_trials_simulation=2):
@@ -99,7 +95,7 @@ def generate_predictions(fit_store, n_samples_posterior=200, n_trials_simulation
 
         # Check existence
         if fit_store.isexist(key_predicted):
-            # print(f"[{key_predicted}] exists. Skipping.") 
+            # print(f"[{key_predicted}] exists. Skipping.")
             final_results[key_predicted] = fit_store[key_predicted]
             continue
 
@@ -159,12 +155,11 @@ def generate_predictions(fit_store, n_samples_posterior=200, n_trials_simulation
 
     return final_results
 
-fit_store = FitStore("22fitting_and_prediction.h5") 
+fit_store = FitStore(INTERMEDIATE_DIR / "model_fits.h5")
 ppd_dict = generate_predictions(fit_store, n_samples_posterior=200, n_trials_simulation=2)
 fit_store.close_store()
 
 
-# In[5]:
 
 
 ppd_dict["clayson2025flanker_fitted_trace_predicted"]["DDM"]
@@ -172,7 +167,6 @@ ppd_dict["clayson2025flanker_fitted_trace_predicted"]["DDM"]
 
 # ### calculate plotting indicators
 
-# In[6]:
 
 
 import pandas as pd
@@ -190,17 +184,17 @@ def generate_plotting_data(
     cond_col: str = "congruency"
 ) -> Dict[str, Any]:
     """
-    Processes observed and model-predicted behavioral data using the `Ob` class to generate 
+    Processes observed and model-predicted behavioral data using the `Ob` class to generate
     a structured dictionary for plotting metrics (CDF, CAF, Delta plots, Subject Means).
 
     Args:
-        df_dict (Dict[str, pd.DataFrame]): Dictionary of observed datasets. 
+        df_dict (Dict[str, pd.DataFrame]): Dictionary of observed datasets.
             Key is dataset name, Value is the trial-level DataFrame.
         ppd_dict (Dict[str, Dict[str, pd.DataFrame]]): Dictionary of posterior predictive data.
             Key is dataset name (usually with suffix), Value is a dict of {ModelName: DataFrame}.
-        Ob_cls (class): The core `Ob` class used for calculating behavioral metrics. 
+        Ob_cls (class): The core `Ob` class used for calculating behavioral metrics.
             Must support instantiation via `Ob(df)` and have attributes `summary_subject`, `caf`, `delta`.
-        ppd_suffix (str, optional): Suffix used in `ppd_dict` keys to match with `df_dict` keys. 
+        ppd_suffix (str, optional): Suffix used in `ppd_dict` keys to match with `df_dict` keys.
             Defaults to "_fitted_trace_predicted".
         subject_id_col (str, optional): Column name for subject ID. Defaults to "subject_id".
         rt_col (str, optional): Column name for Response Time. Defaults to "rt".
@@ -253,7 +247,7 @@ def generate_plotting_data(
         delta_data = analysis.delta.copy()
 
         # 5. Extract CDF (Cumulative Distribution Function)
-        # As per requirements, CDF data is derived from the delta object 
+        # As per requirements, CDF data is derived from the delta object
         # (using mean_comp and mean_incomp per bin).
         cdf_data = analysis.delta.copy()
         # We ensure the relevant columns for CDF are present (bin, mean_comp, mean_incomp)
@@ -302,7 +296,6 @@ def generate_plotting_data(
     return plotting_data
 
 
-# In[7]:
 
 
 # it will cost 2 mins
@@ -314,33 +307,30 @@ plotting_data = generate_plotting_data(
 )
 
 
-# In[ ]:
 
 
-import pickle
-pickle.dump(plotting_data, open("24_ppc_process_data_dict.pkl","wb"))
+with (INTERMEDIATE_DIR / "ppc_data.pkl").open("wb") as output_file:
+    pickle.dump(plotting_data, output_file)
 
 
 # ## Plot PPC
 
 # ### CAF
 
-# In[34]:
 
 
 fig = plot_distribution_curve(
-    plotting_data, 
-    plot_type='caf', 
-    # figsize=(12, 30), 
+    plotting_data,
+    plot_type='caf',
+    # figsize=(12, 30),
     model_colors = MODEL_COLORS,
     known_tasks = DEFAULT_TASKS,
     task_order = DEFAULT_TASK_ORDER,
-    save_name="../figs/24_ppc_caf_full.svg")
+    save_name=SUPPLEMENT_FIGURES_DIR / "ppc_caf_full.svg")
 
 
 # ### Delta RTs
 
-# In[35]:
 
 
 fig = plot_delta_functions(
@@ -350,33 +340,30 @@ fig = plot_delta_functions(
     model_colors = MODEL_COLORS,
     known_tasks = DEFAULT_TASKS,
     task_order = DEFAULT_TASK_ORDER,
-    save_name="../figs/24_ppc_delta_structured_full.svg"
+    save_name=SUPPLEMENT_FIGURES_DIR / "ppc_delta_full.svg"
 )
 
 
 # ### Selected Examples
 
-# In[20]:
 
 
-selected_data = {key: plotting_data[key] for key in plotting_data.keys() 
+selected_data = {key: plotting_data[key] for key in plotting_data.keys()
                  if key.startswith(('eisenberg', 'hedge', 'reymermet'))}
 
 
-# In[32]:
 
 
 fig = plot_distribution_curve(
-    selected_data, 
-    plot_type='caf', 
-    # figsize=(12, 30), 
+    selected_data,
+    plot_type='caf',
+    # figsize=(12, 30),
     model_colors = MODEL_COLORS,
     known_tasks = DEFAULT_TASKS,
     task_order = DEFAULT_TASK_ORDER,
-    save_name="../figs/24_ppc_caf_selected.svg")
+    save_name=SUPPLEMENT_FIGURES_DIR / "ppc_caf_selected.svg")
 
 
-# In[33]:
 
 
 fig = plot_delta_functions(
@@ -386,6 +373,5 @@ fig = plot_delta_functions(
     model_colors = MODEL_COLORS,
     known_tasks = DEFAULT_TASKS,
     task_order = DEFAULT_TASK_ORDER,
-    save_name="../figs/24_ppc_delta_structured_selected.svg"
+    save_name=SUPPLEMENT_FIGURES_DIR / "ppc_delta_selected.svg"
 )
-

@@ -18,8 +18,12 @@ import html
 import math
 import os
 import re
+import shutil
+import subprocess
 import xml.etree.ElementTree as ET
 import xml.sax.saxutils as su
+
+from nsbi_module.project_paths import MAIN_FIGURES_DIR, ensure_output_directories
 
 # ---------------------------------------------------------------------------
 # DATA  (extracted verbatim from figs/EFA_fig.html CONFIG / factors / rawLoadings / correlations)
@@ -70,20 +74,20 @@ CORRS = [
 
 # layout config (from HTML CONFIG, widened for readability)
 L = dict(
-    factorGapX=220,      # 因子椭圆之间的水平间距（px）
-    factorWidth=140,     # 因子椭圆宽
-    factorHeight=100,    # 因子椭圆高
-    paramStepY=45,       # 参数盒之间的水平间距（px）
-    paramHeight=33,      # 参数盒高（旋转前的高）
-    paramWidth=90,       # 参数盒宽（旋转前的宽）
-    factorRowY=0.38,     # 因子行纵向位置（0-1，越小越靠上）
-    paramRowY=0.80,      # 参数行纵向位置（0-1，越大越靠下）
-    corrArchHeight=0.25, # 相关弧线高度系数（越大弧越高）
-    labelMinDist=34,     # 加载值标签最小间距（dodge 算法）
+    factorGapX=220,      # Horizontal spacing between factor ellipses in pixels
+    factorWidth=140,     # Factor ellipse width
+    factorHeight=100,    # Factor ellipse height
+    paramStepY=45,       # Horizontal spacing between parameter boxes in pixels
+    paramHeight=33,      # Parameter-box height before rotation
+    paramWidth=90,       # Parameter-box width before rotation
+    factorRowY=0.38,     # Relative vertical position of the factor row
+    paramRowY=0.80,      # Relative vertical position of the parameter row
+    corrArchHeight=0.25, # Correlation-arc height multiplier
+    labelMinDist=34,     # Minimum loading-label distance for dodging
     labelDodgeStrength=0.9,
-    baseWidth=1,         # 连线基础宽度
-    widthScale=8,        # 连线宽度随加载值缩放系数
-    labelToEnd=0.50,     # 加载值标签在线上的位置（0-1，0.5=中点）
+    baseWidth=1,         # Base path width
+    widthScale=8,        # Loading-to-path-width scale
+    labelToEnd=0.50,     # Loading-label position along each path
 )
 COL = dict(pos="#425E77", neg="#D64045", corr="#919191")
 
@@ -316,12 +320,6 @@ def emit_svg(scene):
         '<stop offset="100%" stop-color="#f0f2f5"/>'
         '</linearGradient>'
     )
-    parts.append(
-        '<filter id="efa_shadow" x="-20%" y="-20%" width="140%" height="140%">'
-        '<feDropShadow dx="0" dy="3" stdDeviation="3" '
-        'flood-color="rgba(0,0,0,0.18)"/>'
-        '</filter>'
-    )
     parts.append("</defs>")
 
     # correlation arcs
@@ -384,10 +382,11 @@ def emit_svg(scene):
         d = FACTORS[k]
         fp = scene["factorPos"][k]
         rx, ry = L["factorWidth"] / 2.0, L["factorHeight"] / 2.0
+        # SVG2 feDropShadow makes Word and Inkscape omit the entire ellipse.
         parts.append(
             f'<ellipse cx="{fp["x"]:.1f}" cy="{fp["y"]:.1f}" rx="{rx}" ry="{ry}" '
-            f'fill="url(#efa_grad_{k})" stroke="rgba(255,255,255,0.2)" '
-            f'stroke-width="1" filter="url(#efa_shadow)"/>'
+            f'fill="url(#efa_grad_{k})" stroke="#ffffff" stroke-opacity="0.2" '
+            f'stroke-width="1"/>'
         )
         # text (3 lines)
         ty0 = fp["y"] - 14
@@ -439,24 +438,56 @@ def _hex(h):
 
 
 def svg_to_png(svg_path, png_path, width, height, background="#f4f6f8"):
-    """Convert SVG to PNG using resvg (faithful, no external deps)."""
-    import resvg_py
-    png_bytes = resvg_py.svg_to_bytes(
-        svg_path=svg_path,
-        width=width, height=height,
-        background=background,
+    """Convert SVG to PNG with resvg, CairoSVG, or Inkscape."""
+    try:
+        import resvg_py
+        png_bytes = resvg_py.svg_to_bytes(
+            svg_path=svg_path,
+            width=width,
+            height=height,
+            background=background,
+        )
+        with open(png_path, "wb") as output_file:
+            output_file.write(png_bytes)
+        return png_path
+    except (ModuleNotFoundError, OSError, TypeError, ValueError):
+        pass
+
+    try:
+        import cairosvg
+
+        cairosvg.svg2png(
+            url=svg_path,
+            write_to=png_path,
+            output_width=width,
+            output_height=height,
+            background_color=background,
+        )
+        return png_path
+    except (ImportError, OSError, TypeError, ValueError):
+        pass
+
+    inkscape = shutil.which("inkscape.com") or shutil.which("inkscape")
+    if inkscape is None:
+        raise RuntimeError("PNG export requires resvg_py, CairoSVG, or Inkscape.")
+    subprocess.run(
+        [inkscape, str(svg_path), "--export-type=png", f"--export-filename={png_path}"],
+        check=True,
     )
-    with open(png_path, "wb") as f:
-        f.write(png_bytes)
     return png_path
 
 
-def compose_fig4(scene):
-    """Stack EFA (panel A) above the 3×3 reliability+factor-space grid.
-    Produces both vector SVG and raster PNG (rendered directly from SVG via resvg)."""
-    here = os.path.dirname(os.path.abspath(__file__))
-    figs = os.path.join(here, "..", "figs")
-    grid_svg_path = os.path.join(figs, "44fig4_v8_combined_3x3.svg")
+def compose_fig4(scene, grid_stem="_figure_04_reliability_panels", out_stem="figure_04_latent_factors", skip_png=False):
+    """Stack EFA panel A above a supplied SVG panel grid.
+
+    grid_stem / out_stem: filenames (without .svg) for the reliability grid and the
+        composed output. Defaults match the submission-safe master.
+    skip_png: when True, skip the resvg PNG render (used for the selectable variant,
+        whose PNG render needs the optional resvg_py dependency).
+    """
+    ensure_output_directories()
+    figs = str(MAIN_FIGURES_DIR)
+    grid_svg_path = os.path.join(figs, f"{grid_stem}.svg")
 
     # ---- read grid dimensions ----
     with open(grid_svg_path, encoding="utf-8") as f:
@@ -506,12 +537,15 @@ def compose_fig4(scene):
         f'width="{gw_pt:.2f}" height="{total_h:.2f}" '
         f'viewBox="0 0 {gw_pt:.2f} {total_h:.2f}" '
         f'font-family="Segoe UI, Arial, sans-serif">\n'
+        # Full-canvas white background so Panel A (native SVG, no own bg)
+        # matches the white figure background of the matplotlib panel grid.
+        f'<rect x="0" y="0" width="{gw_pt:.2f}" height="{total_h:.2f}" fill="#ffffff"/>\n'
         f'<!-- Panel A: EFA factor-analysis path diagram -->\n'
         f'<svg x="{efa_pad_left}" y="0" width="{efa_w:.2f}" height="{efa_scaled_h:.2f}" '
         f'viewBox="{bx:.0f} {by:.0f} {bw:.0f} {bh:.0f}">\n'
         f'{efa_inner}\n'
         f'</svg>\n'
-        f'<!-- Panels B-J: Reliability + Factor Space (3x3) -->\n'
+        f'<!-- Lower panel grid -->\n'
         f'<svg x="0" y="{efa_scaled_h + gap_pt:.2f}" '
         f'width="{gw_pt:.2f}" height="{gh_pt:.2f}" '
         f'viewBox="0 0 {gw_pt:.2f} {gh_pt:.2f}">\n'
@@ -522,38 +556,72 @@ def compose_fig4(scene):
         f'font-weight="bold" fill="#333333">A</text>\n'
         f'</svg>'
     )
-    out_svg = os.path.join(figs, "Fig4_final.svg")
+    out_svg = os.path.join(figs, f"{out_stem}.svg")
     with open(out_svg, "w", encoding="utf-8") as f:
         f.write(final_svg)
     print("wrote", os.path.normpath(out_svg))
 
     # ---- render final PNG directly from final SVG via resvg ----
-    out_png = os.path.join(figs, "Fig4_final.png")
-    scale = 300 / 72  # 300 DPI target
-    svg_to_png(out_svg, out_png,
-               width=int(gw_pt * scale), height=int(total_h * scale),
-               background="#ffffff")
-    print("wrote", os.path.normpath(out_png))
+    if not skip_png:
+        out_png = os.path.join(figs, f"{out_stem}.png")
+        scale = 300 / 72  # 300 DPI target
+        svg_to_png(out_svg, out_png,
+                   width=int(gw_pt * scale), height=int(total_h * scale),
+                   background="#ffffff")
+        print("wrote", os.path.normpath(out_png))
 
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser(description="Compose EFA panel A above an SVG panel grid.")
+    parser.add_argument(
+        "--selectable",
+        action="store_true",
+        help="Compose a text-selectable variant and skip the optional resvg PNG.",
+    )
+    parser.add_argument(
+        "--grid-stem",
+        default=None,
+        help="Input SVG stem under figures/main.",
+    )
+    parser.add_argument(
+        "--out-stem",
+        default=None,
+        help="Output SVG/PNG stem under figures/main.",
+    )
+    parser.add_argument(
+        "--compose-only",
+        action="store_true",
+        help="Skip rewriting the standalone EFA_fig.svg/png files.",
+    )
+    args = parser.parse_args()
+
     scene = compute_scene()
-    here = os.path.dirname(os.path.abspath(__file__))
-    figs = os.path.join(here, "..", "figs")
+    ensure_output_directories()
+    figs = str(MAIN_FIGURES_DIR)
 
-    svg = emit_svg(scene)
-    out_svg = os.path.join(figs, "EFA_fig.svg")
-    with open(out_svg, "w", encoding="utf-8") as f:
-        f.write(svg)
-    print("wrote", os.path.normpath(out_svg))
+    if not args.compose_only:
+        svg = emit_svg(scene)
+        out_svg = os.path.join(figs, "_figure_04_efa_diagram.svg")
+        with open(out_svg, "w", encoding="utf-8") as f:
+            f.write(svg)
+        print("wrote", os.path.normpath(out_svg))
 
-    out_png = os.path.join(figs, "EFA_fig.png")
-    bx, by, bw, bh = scene["bbox"]
-    svg_to_png(out_svg, out_png, width=int(bw * 2), height=int(bh * 2))
-    print("wrote", os.path.normpath(out_png))
+        if not args.selectable:
+            # EFA raster preview needs resvg_py (optional dep); skip in selectable mode.
+            out_png = os.path.join(figs, "_figure_04_efa_diagram.png")
+            bx, by, bw, bh = scene["bbox"]
+            svg_to_png(out_svg, out_png, width=int(bw * 2), height=int(bh * 2))
+            print("wrote", os.path.normpath(out_png))
 
-    # Compose full Fig4
-    compose_fig4(scene)
+    default_grid_stem = "_figure_04_reliability_panels"
+    default_out_stem = "figure_04_latent_factors"
+    compose_fig4(
+        scene,
+        grid_stem=args.grid_stem or default_grid_stem,
+        out_stem=args.out_stem or default_out_stem,
+        skip_png=args.selectable,
+    )
 
 
 if __name__ == "__main__":

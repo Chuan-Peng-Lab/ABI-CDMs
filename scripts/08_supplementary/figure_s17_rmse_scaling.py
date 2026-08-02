@@ -16,10 +16,8 @@ Strategy:
 Output:
   - 33_rmse_scaling_sensitivity.csv
   - 33_rmse_scaling_summary.csv
-  - figs/S_rmse_scaling_sensitivity.svg  & .png
+  - figures/supplement/figure_s17_rmse_scaling.svg and .png
 """
-import os
-import sys
 import warnings
 from pathlib import Path
 
@@ -38,6 +36,12 @@ from nsbi_module.analysis_utils import (
     concat_dfs_by_subj,
     get_col_names,
 )
+from nsbi_module.project_paths import (
+    INTERMEDIATE_DIR,
+    SUPPLEMENT_FIGURES_DIR,
+    TABLES_DIR,
+    ensure_output_directories,
+)
 
 plt.rcParams["font.sans-serif"] = ["Arial", "Arial Unicode MS", "DejaVu Sans"]
 plt.rcParams["axes.unicode_minus"] = False
@@ -46,8 +50,8 @@ sns.set_style("white")
 # ---------------------------------------------------------------------------
 # 0. Constants
 # ---------------------------------------------------------------------------
-STORE_DATASETS_PATH = "../03_fitting/21preprocessed_datasets.h5"
-STORE_FITS_PATH = "../03_fitting/22fitting_and_prediction.h5"
+STORE_DATASETS_PATH = INTERMEDIATE_DIR / "datasets_cross_sectional.h5"
+STORE_FITS_PATH = INTERMEDIATE_DIR / "model_fits.h5"
 CAF_SCALE_BASES = [0, 125, 250, 375, 500, 750, 1000]
 MAP_NPARAMS = {"DDM": 4, "DMC": 5, "SSP": 6, "DSTP": 7}
 MODELS_MAIN = ["DSTP", "DMC", "SSP", "DDM"]
@@ -322,6 +326,7 @@ def plot_sensitivity(summary_df, save_svg, save_png):
 # 6. Main
 # ---------------------------------------------------------------------------
 def main():
+    ensure_output_directories()
     print("=" * 60)
     print("  PHASE 3: RMSE SCALING SENSITIVITY")
     print("=" * 60)
@@ -339,14 +344,14 @@ def main():
     # Step 3: Derive sensitivity
     print("\n[3/5] Deriving sensitivity across scaling factors...")
     all_df = derive_sensitivity(base_df)
-    sensitivity_path = "33_rmse_scaling_sensitivity.csv"
+    sensitivity_path = TABLES_DIR / "figure_s17_rmse_scaling.csv"
     all_df.to_csv(sensitivity_path, index=False)
     print(f"  Saved: {sensitivity_path} ({all_df.shape[0]} rows)")
 
     # Step 4: Summary
     print("\n[4/5] Computing summary statistics...")
     summary_df = compute_summary(all_df)
-    summary_path = "33_rmse_scaling_summary.csv"
+    summary_path = TABLES_DIR / "figure_s17_rmse_scaling_summary.csv"
     summary_df.to_csv(summary_path, index=False)
     print(f"  Saved: {summary_path} ({summary_df.shape[0]} rows)")
 
@@ -363,8 +368,8 @@ def main():
     print("\n[5/5] Generating figure...")
     plot_sensitivity(
         summary_df,
-        save_svg="../figs/S_rmse_scaling_sensitivity.svg",
-        save_png="../figs/S_rmse_scaling_sensitivity.png",
+        save_svg=SUPPLEMENT_FIGURES_DIR / "figure_s17_rmse_scaling.svg",
+        save_png=SUPPLEMENT_FIGURES_DIR / "figure_s17_rmse_scaling.png",
     )
 
     print("\n  PHASE 3 COMPLETE.")

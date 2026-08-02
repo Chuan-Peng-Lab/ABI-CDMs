@@ -2,7 +2,7 @@
 title: "Cognitive Model Parameter EFA: 4-Factor Solution"
 author: "Wanke Pan"
 date: "`r Sys.Date()`"
-output: 
+output:
   html_notebook:
     toc: yes
     toc_depth: 3
@@ -39,6 +39,10 @@ pacman::p_load(
 # Set seed for reproducibility
 set.seed(20260120)
 
+repo_root <- normalizePath(file.path(getwd(), "..", ".."), mustWork = TRUE)
+intermediate_dir <- file.path(repo_root, "results", "intermediate")
+dir.create(intermediate_dir, recursive = TRUE, showWarnings = FALSE)
+
 ```
 
 # 1. Data Preparation
@@ -50,10 +54,10 @@ We load the data and immediately clean the column names. The original file conta
 ```{r}
 # Read data
 # Note: Ensure the path is correct relative to your working directory
-raw_data <- read.csv("./23subj_indices_across_models_and_tasks.csv", check.names = FALSE)
+raw_data <- read.csv(file.path(intermediate_dir, "subject_indices.csv"), check.names = FALSE)
 
 # Select relevant columns (excluding indices 24-28 as per original script)
-df_analysis <- raw_data %>% 
+df_analysis <- raw_data %>%
   select(-c(24:28))
 ```
 
@@ -67,7 +71,7 @@ Since parameters (like  vs ) have vastly different scales, we must standardize t
 
 # Remove non-numeric columns (task_id, subject indices)
 df_numeric <- df_analysis %>%
-  select(-task_id, -subject_id) %>% 
+  select(-task_id, -subject_id) %>%
   select_if(is.numeric)
 
 # Standardize data (Z-score) to ensure equal weight in EFA
@@ -87,7 +91,7 @@ Before running the final model, we perform a **Parallel Analysis** and inspect t
 ```{r}
 # Parallel Analysis and Scree Plot
 psych::fa.parallel(
-  df_scaled, 
+  df_scaled,
   fm = "ml",       # Maximum Likelihood
   fa = "fa",       # Show Factor Analysis results (not PCA)
   n.iter = 50,     # Number of simulated iterations
@@ -111,8 +115,8 @@ N_FACTORS <- 4
 
 # Run Factor Analysis (Oblique Rotation)
 efa_fit <- psych::fa(
-  r = df_scaled, 
-  nfactors = N_FACTORS, 
+  r = df_scaled,
+  nfactors = N_FACTORS,
   rotate = "oblimin",  # Allows correlations between factors
   # n.iter = 1000,       # For bootstrape
   fm = "ml"            # Maximum Likelihood
@@ -160,14 +164,14 @@ latex_labels <- rownames(efa_fit$loadings) %>%
     })
 
 loadings_mat <- unclass(efa_fit$loadings)
-heatmap_data <- t(loadings_mat) 
+heatmap_data <- t(loadings_mat)
 # 4. Create the Heatmap
 pheatmap::pheatmap(
   heatmap_data,
   scale = "none",          # Loadings are already on -1 to 1 scale, usually don't scale rows/cols further
   cluster_rows = FALSE,    # Keep our named Factors (Control, Caution...) ordered
   cluster_cols = TRUE,     # Cluster parameters to group similar ones together
-  clustering_distance_cols = "correlation", 
+  clustering_distance_cols = "correlation",
   labels_col = latex_labels, # Apply the LaTeX labels
   display_numbers = TRUE,  # Show the correlation numbers
   number_format = "%.2f",  # 2 decimal places
@@ -188,7 +192,7 @@ Since we used oblique rotation (`oblimin`), the latent factors are allowed to co
 phi_matrix <- efa_fit$Phi
 
 corrplot::corrplot(
-  phi_matrix, 
+  phi_matrix,
   method = "color",       # Use color intensity
   addCoef.col = "black",  # Add number in black
   type = "lower",         # Show lower triangle
@@ -221,7 +225,7 @@ cat("=============================================\n\n")
 kmo_result <- psych::KMO(df_scaled)
 cat("--- Kaiser-Meyer-Olkin (KMO) Measure ---\n")
 cat("Overall MSA:        ", round(kmo_result$MSA, 3), "\n")
-cat("Interpretation:     ", 
+cat("Interpretation:     ",
     ifelse(kmo_result$MSA >= 0.8, "Excellent",
     ifelse(kmo_result$MSA >= 0.7, "Good",
     ifelse(kmo_result$MSA >= 0.6, "Mediocre",
@@ -232,8 +236,8 @@ bartlett_result <- psych::cortest.bartlett(df_scaled)
 cat("--- Bartlett's Test of Sphericity ---\n")
 cat("Chi-square:         ", round(bartlett_result$chisq, 2), "\n")
 cat("p-value:            ", format(bartlett_result$p.value, scientific = TRUE), "\n")
-cat("Significance:       ", ifelse(bartlett_result$p.value < 0.05, 
-                              "Significant (Data suitable for FA)", 
+cat("Significance:       ", ifelse(bartlett_result$p.value < 0.05,
+                              "Significant (Data suitable for FA)",
                               "Not significant (Data may be unsuitable)"), "\n\n")
 
 # 3. Factor Correlations (Crucial for Oblimin)
@@ -244,10 +248,10 @@ cat("=============================================\n")
 if (!is.null(efa_fit$Phi)) {
   cat("Note: Since 'oblimin' rotation was used, factors are allowed to correlate.\n")
   cat("Moderate correlations (0.3 - 0.5) justify the use of oblique rotation.\n\n")
-  
+
   # Print the Phi matrix rounded
   print(round(efa_fit$Phi, 3))
-  
+
   cat("\nCheck:\n")
   cat(" * High correlations (> 0.80): Factors may be redundant (multicollinearity).\n")
   cat(" * Very low correlations (< 0.10): Factors are essentially orthogonal.\n\n")
@@ -267,23 +271,23 @@ cat("Cumulative variance explained:", round(sum(variance_accounted[2, ]), 3), "\
 
 for (i in 1:ncol(factor_loadings)) {
   factor_name <- colnames(factor_loadings)[i]
-  
+
   # Identify row index for "Proportion Var" (usually 2nd row in Vaccounted)
   prop_var_row <- which(rownames(variance_accounted) == "Proportion Var")
   if(length(prop_var_row) == 0) prop_var_row <- 2 # Fallback
-  
+
   # Get loadings for this factor
   current_loadings <- factor_loadings[, i]
   names(current_loadings) <- report_labels # Apply the latex/clean labels
-  
+
   # Filter for high loadings (> 0.4 or < -0.4)
   high_loadings_idx <- abs(current_loadings) > 0.4
   sorted_loadings <- sort(current_loadings[high_loadings_idx], decreasing = TRUE, index.return = FALSE)
-  
+
   # Print Header
   cat(sprintf(">> Factor: %s\n", factor_name))
   cat(sprintf("   Variance Explained: %.1f%%\n", variance_accounted[prop_var_row, i] * 100))
-  
+
   # Print Variables
   if (length(sorted_loadings) > 0) {
     cat("   Top Items:\n")
@@ -313,7 +317,7 @@ if(nrow(raw_data) == nrow(subj_scores)) {
   stop("Error: Row mismatch. The number of rows in raw_data does not match the factor scores.")
 }
 
-output_filename <- paste0("./43_subj_indices_with_EFA_scores",".csv")
+output_filename <- file.path(intermediate_dir, "factor_scores.csv")
 
 write.csv(final_data, output_filename, row.names = FALSE)
 ```
@@ -322,19 +326,19 @@ write.csv(final_data, output_filename, row.names = FALSE)
 ## For retest datasets
 
 ```{r}
-raw_data_retest <- read.csv("./23subj_indices_across_models_and_tasks_retest.csv", check.names = FALSE)
+raw_data_retest <- read.csv(file.path(intermediate_dir, "subject_indices_retest.csv"), check.names = FALSE)
 
-df_numeric_retest <- raw_data_retest %>% 
-  select(-c(24:28)) %>% 
-  select(-task_id, -subject_id, -session_id) %>% 
+df_numeric_retest <- raw_data_retest %>%
+  select(-c(24:28)) %>%
+  select(-task_id, -subject_id, -session_id) %>%
   select_if(is.numeric)
 
 df_scaled_retest <- scale(df_numeric_retest)
 
 N_FACTORS <- 4
 efa_fit_retest <- psych::fa(
-  r = df_scaled_retest, 
-  nfactors = N_FACTORS, 
+  r = df_scaled_retest,
+  nfactors = N_FACTORS,
   rotate = "oblimin",  # Allows correlations between factors
   # n.iter = 1000,       # For bootstrape
   fm = "ml"            # Maximum Likelihood
@@ -354,7 +358,7 @@ if(nrow(raw_data_retest) == nrow(subj_scores_retest)) {
 } else {
   stop("Error: Row mismatch. The number of rows in raw_data does not match the factor scores.")
 }
-output_filename_retest <- paste0("./43_subj_indices_with_EFA_scores_retest",".csv")
+output_filename_retest <- file.path(intermediate_dir, "factor_scores_retest.csv")
 write.csv(final_data_retest, output_filename_retest, row.names = FALSE)
 ```
 
