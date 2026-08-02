@@ -20,6 +20,12 @@ build/
 # Checkpoints (download from OSF/Zenodo)
 checkpoints/
 
+# Figures: keep only PNG, ignore vector/pdf/source image formats
+*.svg
+*.pdf
+figures/main/_figure_*
+figures/main/pdf/
+
 # Generated analysis output
 results/intermediate/
 results/tables/
