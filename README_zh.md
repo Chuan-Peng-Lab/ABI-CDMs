@@ -7,7 +7,7 @@
 ```text
 data/                 9 个保留的原始 CSV
 checkpoints/          预训练模型权重
-figures/main/         论文主图 1–5（SVG 与 PNG）
+figures/main/         论文主图 1–5（仅 PNG）
 figures/supplement/   生成的补充图
 nsbi_module/          可复用的推断与分析模块
 results/intermediate/ 生成的中间结果
@@ -82,11 +82,11 @@ python scripts/08_supplementary/figure_s09_dstp_vs_dmc.py
 
 | 图 | 生成脚本 | 正式输出 |
 |---|---|---|
-| **Figure 1** | 设计图，无分析生成脚本 | `figure_01_workflow.{svg,png}` |
-| **Figure 2** | `figure_02_model_comparison.py` | `figure_02_model_comparison.{svg,png}` |
-| **Figure 3** | `figure_03_posterior_predictive_checks.py` | `figure_03_posterior_predictive_checks.{svg,png}` |
-| **Figure 4** | `figure_04_latent_factors.py` | `figure_04_latent_factors.{svg,png}` |
-| **Figure 5** | `figure_05_factor_space.py` | `figure_05_factor_space.{svg,png}` |
+| **Figure 1** | 设计图，无分析生成脚本 | `figure_01_workflow.png` |
+| **Figure 2** | `figure_02_model_comparison.py` | `figure_02_model_comparison.png` |
+| **Figure 3** | `figure_03_posterior_predictive_checks.py` | `figure_03_posterior_predictive_checks.png` |
+| **Figure 4** | `figure_04_latent_factors.py` | `figure_04_latent_factors.png` |
+| **Figure 5** | `figure_05_factor_space.py` | `figure_05_factor_space.png` |
 
 预训练权重存档：**[10.5281/zenodo.21623907](https://doi.org/10.5281/zenodo.21623907)**。
 

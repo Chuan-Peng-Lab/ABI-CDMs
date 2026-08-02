@@ -11,7 +11,7 @@ ABI-CDMs/
 ├── data/                       # Nine retained raw CSV files
 ├── checkpoints/                # Downloaded pretrained estimators
 ├── figures/
-│   ├── main/                   # Canonical Figures 1–5 (SVG and PNG)
+│   ├── main/                   # Canonical Figures 1–5 (PNG only)
 │   └── supplement/             # Generated supplementary figures
 ├── nsbi_module/                # Reusable inference and analysis library
 ├── results/
@@ -42,9 +42,7 @@ For the factor and reliability analyses, install the R packages used by the file
 The release contains nine raw CSV files:
 
 - eight studies used in the cross-sectional analysis;
-- one separate test–retest study (`clayson2024.csv`).
-
-`erb2023.csv` is not part of the released analysis and has been removed. Raw-file participant counts differ from final analysis counts after task selection, session selection, and quality filtering. See [DATA_SOURCES.md](docs/DATA_SOURCES.md) for the authoritative distinction.
+- Raw-file participant counts differ from final analysis counts after task selection, session selection, and quality filtering. See [DATA_SOURCES.md](docs/DATA_SOURCES.md) for the authoritative distinction.
 
 ## Pretrained checkpoints
 
@@ -148,13 +146,13 @@ python scripts/08_supplementary/figure_s09_dstp_vs_dmc.py
 
 | Figure | Generator | Published files |
 |---|---|---|
-| **Figure 1** | Design asset; no analysis generator | `figures/main/figure_01_workflow.{svg,png}` |
-| **Figure 2** | `scripts/05_model_comparison/figure_02_model_comparison.py` | `figure_02_model_comparison.{svg,png}` |
-| **Figure 3** | `scripts/06_ppc/figure_03_posterior_predictive_checks.py` | `figure_03_posterior_predictive_checks.{svg,png}` |
-| **Figure 4** | `scripts/07_parameter_analysis/figure_04_latent_factors.py` | `figure_04_latent_factors.{svg,png}` |
-| **Figure 5** | `scripts/07_parameter_analysis/figure_05_factor_space.py` | `figure_05_factor_space.{svg,png}` |
+| **Figure 1** | Design asset; no analysis generator | `figures/main/figure_01_workflow.png` |
+| **Figure 2** | `scripts/05_model_comparison/figure_02_model_comparison.py` | `figure_02_model_comparison.png` |
+| **Figure 3** | `scripts/06_ppc/figure_03_posterior_predictive_checks.py` | `figure_03_posterior_predictive_checks.png` |
+| **Figure 4** | `scripts/07_parameter_analysis/figure_04_latent_factors.py` | `figure_04_latent_factors.png` |
+| **Figure 5** | `scripts/07_parameter_analysis/figure_05_factor_space.py` | `figure_05_factor_space.png` |
 
-To export the five SVG masters as PDFs:
+To export the five PNG masters as PDFs:
 
 ```bash
 python scripts/09_export/export_main_figure_pdfs.py
