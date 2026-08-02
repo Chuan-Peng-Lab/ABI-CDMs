@@ -1,352 +1,169 @@
-# ABI-CDMs: Amortized Bayesian Inference of Conflict Diffusion Models
+# ABI-CDMs
 
-[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+Amortized Bayesian inference for conflict diffusion models, accompanying the manuscript *No Single Model Fits All: Conflict Decision-Making Models Vary More Across Studies Than Across Tasks*.
 
-> **Paper**: *No Single Model Fits All: Conflict Decision-Making Models Vary More Across Datasets Than Across Tasks*
->
-> Wanke Pan, Jiashun Wang, Klaus Oberauer, Hu Chuan-Peng
->
-> School of Psychology, Nanjing Normal University; LMU Munich; University of Zurich
+The repository contains the release-ready pipeline for four primary models—DDM, DMC, SSP, and DSTP—plus the constrained and dRiftDM-aligned specifications reported in the supplementary material. Notebook demonstrations, ad hoc tests, and unrelated experimental models are excluded.
 
-This repository contains all code and data to reproduce the analyses in the paper. It implements **amortized Bayesian inference** (also called neural simulation-based inference, NSBI) for four cognitive process models of conflict decision-making: the **Diffusion Decision Model (DDM)**, the **Diffusion Model for Conflict (DMC)**, the **Shrinking Spotlight (SSP)**, and the **Dual-Stage Two-Phase (DSTP)** model.
+## Repository layout
 
----
-
-## Repository Structure
-
-```
+```text
 ABI-CDMs/
-├── README.md                          # This file
-├── README_zh.md                       # Chinese version
-├── LICENSE                            # AGPL v3
-├── requirements.txt                   # Python dependencies
-├── environment.yml                    # Conda environment (recommended)
-├── setup.py                           # pip install -e .
-├── .gitignore
-├── nsbi_module/                       # Core library
-│   ├── __init__.py                    # Package exports
-│   ├── NSBI_CDMs.py                   # Main model class
-│   ├── trainer.py                     # NSBI training infrastructure
-│   ├── simulators.py                  # Model simulators (DDM/DMC/SSP/DSTP)
-│   ├── dists.py                       # Probability distributions
-│   ├── default_settings.py            # Default parameters & config
-│   ├── model_metrics.py               # RMSE, G², aBIC computation
-│   ├── analysis_utils.py              # Analysis helper functions
-│   ├── plotting.py                    # Publication-quality plotting
-│   ├── utils.py                       # General utilities
-│   ├── utils_preprocessing.py         # Data preprocessing utilities
-│   ├── utils_ind_diff.py              # Individual difference utilities
-│   ├── study_labels.py                # Dataset metadata & labels
-│   ├── dmc_v2_loader.py               # DMC v2 model loader
-│   ├── dmc_vs_loader.py               # DMC variant selector loader
-│   └── tsdm_loader.py                 # TSDM model loader
-├── scripts/                           # Analysis pipeline (in run order)
-│   ├── 01_preprocessing/              # Data preprocessing
-│   │   └── 21datasets_preprocessing.py
-│   ├── 02_training/                   # Model training (NSBI)
-│   │   ├── DDM_training.py            # DDM training
-│   │   ├── DMC_training.py            # DMC training
-│   │   ├── SSP_training.py            # SSP training
-│   │   ├── DSTP_training.py           # DSTP training
-│   │   └── ... (variant trainings)
-│   ├── 03_fitting/                    # Model fitting & prediction
-│   │   ├── 22fitting_and_predicting.py
-│   │   ├── 22fitting_and_predicting_dmc_v2.py
-│   │   ├── 23individual_analysis_preprocess.py
-│   │   └── 23individual_analysis_preprocess_dmc_v2.py
-│   ├── 04_validation/                 # Parameter & model recovery
-│   │   ├── 11parameter_recovery.py
-│   │   ├── 12parameter_mapping.py
-│   │   └── 13model_recovery.py
-│   ├── 05_model_comparison/           # Model comparison (manuscript Fig 2)
-│   │   ├── 31prediciontion_comparison_RMSE.py   # Batch entry-point
-│   │   ├── 31plot_percentage_RMSE.py            # Panel A/B
-│   │   ├── 31plot_consistency_RMSE.py           # Panel C/D
-│   │   ├── 31plot_retest_RMSE.py                # Panel E/F
-│   │   ├── 32fig2_v8_combined.py                # Combined Fig 2
-│   │   └── 32_model_metrics_comparison.py
-│   ├── 06_ppc/                        # Posterior predictive checks (Fig 3)
-│   │   ├── 24PPC.py                   # PPC computation
-│   │   └── 24plot_ppc_fig3.py         # Combined Fig 3
-│   ├── 07_parameter_analysis/         # EFA & reliability (manuscript Fig 4)
-│   │   ├── 41parameter_analysis.py
-│   │   ├── 43_factor_space_visualization.py
-│   │   ├── 44fig4_efa_svg.py          # Final Fig 4 (SVG)
-│   │   ├── 44fig4_v8_combined.py      # Combined Fig 4
-│   │   ├── 43_EAF.Rmd                 # EFA (R)
-│   │   ├── 44_factor_analysis.Rmd     # Factor analysis (R)
-│   │   ├── 44_fitting_models.R        # Bayesian models (R)
-│   │   ├── 44_viz_functions.R         # Visualization helpers (R)
-│   │   ├── 45_parameter_consistency.Rmd # Parameter consistency (R)
-│   │   └── 44_export_fig4_reliability_data.R
-│   └── 08_supplementary/              # Supplementary materials
-│       ├── 33_rmse_scaling_sensitivity.py      # RMSE scaling sensitivity
-│       ├── 33_rmse_scaling_sensitivity_plot.py
-│       ├── 33_ppc_component_metrics.py         # PPC component metrics
-│       └── 33_model_metric_supplement.py       # Multi-criterion comparison
-├── data/                              # Raw behavioral data (9 datasets)
-│   ├── clayson2024.csv
-│   ├── clayson2025.csv
-│   ├── eisenberg2019.csv
-│   ├── hedge2018.csv
-│   ├── kucina2023.csv
-│   ├── lee2025.csv
-│   ├── reymermet2018.csv
-│   ├── ulrich2015.csv
-│   └── whitehead2019.csv
-├── checkpoints/                       # Model weights (download from OSF/Zenodo)
-├── output/                            # Generated figures & results
-└── docs/
-    └── DATA_SOURCES.md                # Dataset citations & sources
+├── data/                       # Nine retained raw CSV files
+├── checkpoints/                # Downloaded pretrained estimators
+├── figures/
+│   ├── main/                   # Canonical Figures 1–5 (SVG and PNG)
+│   └── supplement/             # Generated supplementary figures
+├── nsbi_module/                # Reusable inference and analysis library
+├── results/
+│   ├── intermediate/           # Generated HDF5, pickle, CSV, and RDS files
+│   └── tables/                 # Generated result tables
+├── scripts/                    # Pipeline in execution order
+├── docs/DATA_SOURCES.md        # Raw and analysis sample documentation
+└── SOURCE_PROVENANCE.md        # Mapping to the development repository
 ```
 
----
-
-## System Requirements
-
-- **OS**: Windows, macOS, or Linux
-- **Python**: 3.10–3.12
-- **R**: 4.0+ (for factor analysis & Bayesian modeling)
-- **GPU**: Optional — training benefits from CUDA-capable GPU, but inference works on CPU
-- **R**: On Windows, `brms` requires **Rtools** (C/C++ compiler toolchain). Download from [cran.r-project.org](https://cran.r-project.org/bin/windows/Rtools/).
-- **Keras backend**: If both TensorFlow and PyTorch are installed, set `KERAS_BACKEND=torch` before running scripts to ensure BayesFlow uses the PyTorch backend.
-- **Disk**: ~2 GB for checkpoints, ~50 MB for data
-
----
+All Python paths are derived from the repository root. Run the commands below from the repository root; changing into individual script directories is not required.
 
 ## Installation
 
-### Option A: Conda (Recommended)
+Python 3.10–3.12 and R 4.0 or newer are recommended. A GPU is optional for inference but strongly recommended for training.
+Inkscape is required only for the optional SVG-to-PDF export and serves as the final PNG-rendering fallback for **Figure 4**.
 
 ```bash
-# Clone the repository
-git clone https://github.com/Chuan-Peng-Lab/ABI-CDMs.git
-cd ABI-CDMs
-
-# Create and activate environment
 conda env create -f environment.yml
-conda activate nsbi-cdms
-
-# Install the nsbi_module package in editable mode
+conda activate abi-cdms
 pip install -e .
 ```
 
-### Option B: pip + venv
+For the factor and reliability analyses, install the R packages used by the files in `scripts/07_parameter_analysis/`, including `tidyverse`, `psych`, `GPArotation`, `brms`, `tidybayes`, `posterior`, `cmdstanr`, and `svglite`.
 
-```bash
-git clone https://github.com/Chuan-Peng-Lab/ABI-CDMs.git
-cd ABI-CDMs
+## Data scope
 
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+The release contains nine raw CSV files:
 
-pip install -r requirements.txt
-pip install -e .
-```
+- eight studies used in the cross-sectional analysis;
+- one separate test–retest study (`clayson2024.csv`).
 
-### R Dependencies
+`erb2023.csv` is not part of the released analysis and has been removed. Raw-file participant counts differ from final analysis counts after task selection, session selection, and quality filtering. See [DATA_SOURCES.md](docs/DATA_SOURCES.md) for the authoritative distinction.
 
-For the EFA and Bayesian modeling scripts (`scripts/07_parameter_analysis/*.Rmd`), install the following R packages:
+## Pretrained checkpoints
 
-```r
-install.packages(c("tidyverse", "psych", "GPArotation", "corrplot"))
-install.packages("pacman")
-pacman::p_load(brms, tidybayes, posterior)
-```
+Download the archived checkpoints from [Zenodo](https://doi.org/10.5281/zenodo.21623907), then extract them into `checkpoints/`:
 
----
-
-## Data
-
-Raw behavioral data from 9 independent studies are included in `data/`. Each CSV contains trial-level response time and accuracy data for conflict tasks (Flanker, Simon, Stroop).
-
-| Dataset | Task(s) | N | Citation |
-|---------|---------|---|----------|
-| `ulrich2015.csv` | Flanker, Simon | 40 | Ulrich et al. (2015) |
-| `hedge2018.csv` | Flanker, Simon, Stroop | 48 | Hedge et al. (2018) |
-| `whitehead2019.csv` | Flanker, Simon, Stroop | 40 | Whitehead et al. (2019) |
-| `eisenberg2019.csv` | Stroop | 59 | Eisenberg et al. (2019) |
-| `kucina2023.csv` | Flanker, Simon, Stroop | 52 | Kucina et al. (2023) |
-| `lee2025.csv` | Flanker, Simon | 315 | Lee et al. (2025) |
-| `clayson2024.csv` | Flanker | 150 | Clayson et al. (2024) |
-| `clayson2025.csv` | Flanker, Simon, Stroop | 606 | Clayson et al. (2025) |
-| `reymermet2018.csv` | Stroop | 76 | Rey-Mermet et al. (2018) |
-
-See `docs/DATA_SOURCES.md` for full citation details.
-
----
-
-## Checkpoints
-
-Pre-trained model weights are available on Zenodo:
-
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21623907.svg)](https://doi.org/10.5281/zenodo.21623907)
-
-**DOI**: [10.5281/zenodo.21623907](https://doi.org/10.5281/zenodo.21623907)
-
-Download `checkpoints_ABI-CDMs.zip` (93.6 MB) and extract into the `checkpoints/` directory. After extraction, `checkpoints/` should contain:
-```
+```text
 checkpoints/
-├── DDM/          # DDM model weights (24 MB)
-├── DMC/          # DMC model weights (28 MB)
-├── SSP/          # SSP model weights (28 MB)
-├── DSTP/         # DSTP model weights (28 MB)
-└── driftdm_dmc/  # DMC v2 extended weights (18 MB)
+├── DDM/
+├── DMC/
+├── SSP/
+├── DSTP/
+└── driftdm_dmc/
 ```
 
----
+This archive covers the four primary models and the six-parameter dRiftDM-aligned DMC. The reduced DMC, SSP, and DSTP checkpoints used for **Figure S7**, and the seven-parameter variable-start DMC used by the current **Figure S8** pipeline, are not in the current archive; use the training commands below to rebuild them.
 
-## Reproducing Results
+## Reproduce the analysis
 
-Scripts use CWD-relative paths. **Each step must be run from its own `scripts/XX_*/` subdirectory** as indicated by the `cd` command at the beginning of each step. (Step 2 (training) is also supported from the repo root.)
+### 1. Preprocess raw data
 
-### Quick Start: Load Pre-trained Models
-
-```python
-from nsbi_module import NSBICDM
-
-# Load a pre-trained DMC model
-model = NSBICDM("DMC", checkpoint_path="checkpoints/DMC")
-
-# Fit the model to observed trial-level data
-posterior = model.fit_data(data, n_posterior=1000)
-```
-
-### Full Analysis Pipeline
-
-Run scripts in the following order. Each step depends on outputs from previous steps.
-
-#### Step 1: Preprocessing
 ```bash
-cd scripts/01_preprocessing
-python 21datasets_preprocessing.py
-cd ../..
+python scripts/01_preprocessing/prepare_datasets.py
 ```
-*Input*: `data/*.csv`
-*Output*: Preprocessed datasets (in memory / passed to fitting)
 
-#### Step 2: Training (skip if using pre-trained checkpoints)
+Creates `results/intermediate/datasets_cross_sectional.h5` and `datasets_retest.h5`.
+
+### 2. Train estimators (optional)
+
+Skip this step when using the pretrained checkpoints.
+
 ```bash
-# Train all four models
-python scripts/02_training/DDM_training.py
-python scripts/02_training/DMC_training.py
-python scripts/02_training/SSP_training.py
-python scripts/02_training/DSTP_training.py
+python scripts/02_training/train_ddm.py
+python scripts/02_training/train_dmc.py
+python scripts/02_training/train_ssp.py
+python scripts/02_training/train_dstp.py
 ```
-*Output*: Model checkpoints in `checkpoints/`
 
-#### Step 3: Model Fitting
+The supplementary constrained specifications have separate, semantically named entry points:
+
 ```bash
-cd scripts/03_fitting
-python 22fitting_and_predicting.py         # Main fitting
-python 22fitting_and_predicting_dmc_v2.py  # DMC v2 variant
-python 23individual_analysis_preprocess.py # Individual subject indices
-python 23individual_analysis_preprocess_dmc_v2.py
-cd ../..
+python scripts/02_training/train_dmc_fixed_shape.py
+python scripts/02_training/train_ssp_fixed_ratio.py
+python scripts/02_training/train_dstp_fixed_ratio.py
+python scripts/02_training/train_driftdm_aligned_dmc.py
+python scripts/02_training/train_driftdm_aligned_dmc_variable_start.py
 ```
-*Output*: `23subj_indices_*.csv`, `23model_prediction_indices*.csv`
 
-#### Step 4: Validation
+The first three reduce weakly identifiable parameter combinations. The six-parameter dRiftDM-aligned model fixes the automatic-activation shape and centers the starting point; the seven-parameter version additionally estimates symmetric starting-point variability. They are intentionally kept as distinct model registrations and checkpoint directories.
+
+### 3. Fit models and summarize predictions
+
 ```bash
-cd scripts/04_validation
-python 11parameter_recovery.py
-python 13model_recovery.py
-cd ../..
+python scripts/03_fitting/fit_core_models.py
+python scripts/03_fitting/fit_extended_dmc.py
+python scripts/03_fitting/summarize_core_fits.py
+python scripts/03_fitting/summarize_extended_dmc.py
 ```
 
-#### Step 5: Model Comparison → **Manuscript Fig 2**
+### 4. Run validation analyses
+
 ```bash
-cd scripts/05_model_comparison
-
-# Batch computation of all model comparison metrics
-python 31prediciontion_comparison_RMSE.py
-
-# Generate combined Fig 2 (2x3 landscape layout)
-python 32fig2_v8_combined.py
-cd ../..
+python scripts/04_validation/figure_s01_s03_parameter_recovery.py
+python scripts/04_validation/figure_s01_s04_model_recovery.py
+python scripts/04_validation/figure_s10_parameter_mapping.py
+python scripts/04_validation/figure_s07_reduced_model_recovery.py
 ```
-*Output*: `output/fig2.svg`, `output/fig2.png`
 
-#### Step 6: Posterior Predictive Checks → **Manuscript Fig 3**
+### 5. Generate model-comparison and PPC figures
+
 ```bash
-cd scripts/06_ppc
-python 24PPC.py              # Compute PPC
-python 24plot_ppc_fig3.py    # Generate Fig 3
-cd ../..
+python scripts/05_model_comparison/figure_02_model_comparison.py
+python scripts/06_ppc/generate_ppc_data.py
+python scripts/06_ppc/figure_03_posterior_predictive_checks.py
+python scripts/06_ppc/figure_s05_caf.py
 ```
-*Output*: `output/fig3.svg`, `output/fig3.png`
 
-#### Step 7: Parameter Analysis → **Manuscript Fig 4**
+### 6. Estimate factors and generate reliability figures
+
+Render `scripts/07_parameter_analysis/estimate_factor_scores.Rmd`, then run the reliability models before generating the final figures:
+
 ```bash
-cd scripts/07_parameter_analysis
-
-# EFA and factor score extraction (Python)
-python 41parameter_analysis.py
-
-# Bayesian cross-task consistency models (R)
-Rscript 44_fitting_models.R
-
-# Factor space visualization
-python 43_factor_space_visualization.py
-
-# Final Fig 4 (native SVG)
-python 44fig4_efa_svg.py
-
-cd ../..
+Rscript scripts/07_parameter_analysis/fit_reliability_models.R
+python scripts/07_parameter_analysis/figure_04_latent_factors.py
+python scripts/07_parameter_analysis/figure_05_factor_space.py
+Rscript scripts/07_parameter_analysis/figure_s15_retest_icc.R
+python scripts/07_parameter_analysis/figure_s16_representational_similarity.py
 ```
-*Output*: `output/fig4.svg`, `output/fig4.png`
 
-#### Step 8: Supplementary Materials
+The Bayesian reliability step is computationally expensive and caches its models in `results/intermediate/`.
+
+### 7. Generate robustness figures
+
 ```bash
-cd scripts/08_supplementary
-
-# RMSE scaling sensitivity analysis
-python 33_rmse_scaling_sensitivity.py
-python 33_rmse_scaling_sensitivity_plot.py
-
-# PPC component-level metrics
-python 33_ppc_component_metrics.py
-
-# Multi-criterion model comparison (RMSE, G², aBIC)
-python 33_model_metric_supplement.py
-cd ../..
-```
-*Output*: Supplementary CSV tables and figures
-
----
-
-## Manuscript Figure Mapping
-
-| Figure | Description | Script | Output |
-|--------|-------------|--------|--------|
-| **Fig 2** | Model comparison, cross-task consistency, retest consistency | `scripts/05_model_comparison/32fig2_v8_combined.py` | `output/fig2.{svg,png}` |
-| **Fig 3** | Posterior predictive checks (CAF + Delta) | `scripts/06_ppc/24plot_ppc_fig3.py` | `output/fig3.{svg,png}` |
-| **Fig 4** | EFA, reliability, and factor space | `scripts/07_parameter_analysis/44fig4_efa_svg.py` | `output/fig4.{svg,png}` |
-
----
-
-## License
-
-This project is licensed under the **GNU Affero General Public License v3.0** (AGPL-3.0). See `LICENSE` for details.
-
----
-
-## Citation
-
-If you use this code or data in your research, please cite:
-
-```
-Pan, W., Wang, J., Oberauer, K., & Hu, C.-P. (2026).
-No Single Model Fits All: Conflict Decision-Making Models
-Vary More Across Datasets Than Across Tasks.
-[Journal/Preprint info TBD]
+python scripts/08_supplementary/figure_s17_rmse_scaling.py
+python scripts/08_supplementary/figure_s18_ppc_component_metrics.py
+python scripts/08_supplementary/figure_s19_model_metric_comparison.py
+python scripts/08_supplementary/figure_s09_dstp_vs_dmc.py
 ```
 
----
+## Canonical manuscript figures
 
-## Contact
+| Figure | Generator | Published files |
+|---|---|---|
+| **Figure 1** | Design asset; no analysis generator | `figures/main/figure_01_workflow.{svg,png}` |
+| **Figure 2** | `scripts/05_model_comparison/figure_02_model_comparison.py` | `figure_02_model_comparison.{svg,png}` |
+| **Figure 3** | `scripts/06_ppc/figure_03_posterior_predictive_checks.py` | `figure_03_posterior_predictive_checks.{svg,png}` |
+| **Figure 4** | `scripts/07_parameter_analysis/figure_04_latent_factors.py` | `figure_04_latent_factors.{svg,png}` |
+| **Figure 5** | `scripts/07_parameter_analysis/figure_05_factor_space.py` | `figure_05_factor_space.{svg,png}` |
 
-**Wanke Pan** — [panwanke2023@gmail.com](mailto:panwanke2023@gmail.com)
+To export the five SVG masters as PDFs:
 
-GitHub: [https://github.com/Chuan-Peng-Lab/ABI-CDMs](https://github.com/Chuan-Peng-Lab/ABI-CDMs)
+```bash
+python scripts/09_export/export_main_figure_pdfs.py
+```
+
+## License and citation
+
+The code is licensed under AGPL-3.0; see `LICENSE`. If you use this release, cite the accompanying paper and the archived software record:
+
+**Pan, W., Wang, J., Oberauer, K., & Hu, C.-P. (2026). *No Single Model Fits All: Conflict Decision-Making Models Vary More Across Studies Than Across Tasks*.**
+
+Checkpoint archive: **[10.5281/zenodo.21623907](https://doi.org/10.5281/zenodo.21623907)**.

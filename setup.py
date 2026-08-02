@@ -1,14 +1,15 @@
-"""Setup configuration for NSBI-CDMs: Neural Simulation-Based Inference of Conflict Diffusion Models."""
+"""Package configuration for ABI-CDMs."""
 
 from setuptools import setup, find_packages
 
 setup(
-    name="nsbi-cdms",
-    version="1.0.0",
-    description="Neural Simulation-Based Inference of Conflict Diffusion Models (DDM, DMC, SSP, DSTP)",
+    name="abi-cdms",
+    version="1.1.0",
+    description="Amortized Bayesian inference of conflict diffusion models",
     author="Wanke Pan",
     author_email="panwanke2023@gmail.com",
     url="https://github.com/Chuan-Peng-Lab/ABI-CDMs",
+    license="AGPL-3.0-or-later",
     packages=find_packages(),
     python_requires=">=3.10",
     install_requires=[
@@ -21,12 +22,16 @@ setup(
         "arviz>=0.18",
         "xarray>=2023.0",
         "numba>=0.58",
+        "numba-stats>=1.7",
         "matplotlib>=3.7",
         "seaborn>=0.12",
         "scikit-learn>=1.3",
+        "joblib>=1.3",
         "rsatoolbox>=0.3",
+        "umap-learn>=0.5",
         "statsmodels>=0.14",
         "pingouin>=0.5",
+        "bambi>=0.13",
         "tqdm>=4.65",
         "fastkde>=1.0",
         "tables>=3.8",
@@ -34,7 +39,6 @@ setup(
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Science/Research",
-        "License :: OSI Approved :: GNU Affero General Public License v3",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",

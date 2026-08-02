@@ -55,7 +55,7 @@ def format_study_label(study: str) -> str:
 
 # ---------------------------------------------------------------------------
 # Abbreviated labels (e.g. "Eisenberg 2019" → "E19")
-# Based on 32fig2_v8_combined.py AUTHOR_ABBREV
+# Canonical study abbreviations shared by the manuscript figures.
 # ---------------------------------------------------------------------------
 STUDY_ABBREV_MAP = {
     "Clayson 2024": "C24",

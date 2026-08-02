@@ -1,0 +1,364 @@
+---
+title: "Cognitive Model Parameter EFA: 4-Factor Solution"
+author: "Wanke Pan"
+date: "`r Sys.Date()`"
+output:
+  html_notebook:
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+    theme: journal
+---
+
+```{r setup, include=FALSE}
+# Global chunk options
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  fig.align = "center",
+  # dpi = 300,
+  fig.width = 6,
+  fig.height = 5
+)
+
+# Load necessary packages
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(
+  psych,      # Main package for Factor Analysis
+  pheatmap,   # For sophisticated heatmaps
+  dplyr,      # Data manipulation
+  ggplot2,    # General plotting
+  corrplot,   # Correlation visualization
+  tidyr,      # Data reshaping
+  stringr,    # String manipulation
+  latex2exp,
+  GPArotation # Required for specific rotations
+)
+
+# Set seed for reproducibility
+set.seed(20260120)
+
+repo_root <- normalizePath(file.path(getwd(), "..", ".."), mustWork = TRUE)
+intermediate_dir <- file.path(repo_root, "results", "intermediate")
+dir.create(intermediate_dir, recursive = TRUE, showWarnings = FALSE)
+
+```
+
+# 1. Data Preparation
+
+## 1.1 Load and Clean Data Names
+
+We load the data and immediately clean the column names. The original file contains LaTeX formatting (e.g., ) which makes plotting difficult. We replace these with readable text.
+
+```{r}
+# Read data
+# Note: Ensure the path is correct relative to your working directory
+raw_data <- read.csv(file.path(intermediate_dir, "subject_indices.csv"), check.names = FALSE)
+
+# Select relevant columns (excluding indices 24-28 as per original script)
+df_analysis <- raw_data %>%
+  select(-c(24:28))
+```
+
+## 1.2 Data Preprocessing (Standardization)
+
+Since parameters (like  vs ) have vastly different scales, we must standardize the data.
+
+```{r}
+# Optional: Filter for a specific task if needed
+# df_analysis <- df_analysis %>% filter(task_id == "eisenberg2019flanker")
+
+# Remove non-numeric columns (task_id, subject indices)
+df_numeric <- df_analysis %>%
+  select(-task_id, -subject_id) %>%
+  select_if(is.numeric)
+
+# Standardize data (Z-score) to ensure equal weight in EFA
+df_scaled <- scale(df_numeric)
+
+cat("Data dimensions for EFA:", nrow(df_scaled), "observations x", ncol(df_scaled), "variables.\n")
+
+```
+
+# 2. Determining Number of Factors
+
+Before running the final model, we perform a **Parallel Analysis** and inspect the **Scree Plot**.
+
+* **Scree Plot:** Displays the eigenvalues (variance explained) for each factor. We look for the "elbow" where the drop levels off.
+* **Parallel Analysis:** Compares the actual data eigenvalues to those generated from random noise. We should retain factors where `Actual Data > Simulated Data`.
+
+```{r}
+# Parallel Analysis and Scree Plot
+psych::fa.parallel(
+  df_scaled,
+  fm = "ml",       # Maximum Likelihood
+  fa = "fa",       # Show Factor Analysis results (not PCA)
+  n.iter = 50,     # Number of simulated iterations
+  main = "Scree Plot & Parallel Analysis"
+)
+
+```
+
+> **Interpretation:** Look at the blue line (Actual Data). If the blue line stays above the red dotted line (Resampled Data) for the first 4 points, a 4-factor solution is statistically justified.
+
+# 3. Exploratory Factor Analysis (4 Factors)
+
+We perform EFA extracting exactly **4 factors** based on the hypothesis/scree results.
+
+* **Extraction:** `ml` (Maximum Likelihood).
+* **Rotation:** `oblimin`. We use oblique rotation because cognitive processes (Inhibition, Speed, etc.) are expected to correlate in nature.
+
+```{r}
+# Define number of factors
+N_FACTORS <- 4
+
+# Run Factor Analysis (Oblique Rotation)
+efa_fit <- psych::fa(
+  r = df_scaled,
+  nfactors = N_FACTORS,
+  rotate = "oblimin",  # Allows correlations between factors
+  # n.iter = 1000,       # For bootstrape
+  fm = "ml"            # Maximum Likelihood
+)
+
+# Print basic model fit
+print(efa_fit$fit)
+cat("\nTotal Variance Explained:", round(sum(efa_fit$Vaccounted["Proportion Var",]), 3) * 100, "%\n")
+```
+
+
+```{r}
+# --- Apply Custom Labels ---
+# CAUTION: Ensure these labels match the statistical output order (Factor 1, 2, 3, 4).
+# Check the 'Proportion Var' in the summary to see which factor explains most variance.
+latent_labels <- c("Processing Efficiency", "Decision Caution", "Non-decision time", "Inhibitory process")
+
+# Rename columns in Loadings and Correlation Matrix
+colnames(efa_fit$loadings) <- latent_labels
+colnames(efa_fit$Phi) <- rownames(efa_fit$Phi) <- latent_labels
+```
+
+
+
+## 3.1 Interpretation of Loadings
+
+We inspect which variables load onto which factors. We suppress small loadings (< 0.4) for clarity.
+
+```{r}
+# Print sorted loadings with new names
+print(psych::fa.sort(efa_fit$loadings), cutoff = 0.45)
+
+```
+
+## 3.2 Visualization of Loadings
+
+
+```{r fig.height=5, fig.width=10}
+latex_labels <- rownames(efa_fit$loadings) %>%
+    sapply(function(x) {
+      tryCatch(
+        latex2exp::TeX(x),
+        error = function(e) x
+      )
+    })
+
+loadings_mat <- unclass(efa_fit$loadings)
+heatmap_data <- t(loadings_mat)
+# 4. Create the Heatmap
+pheatmap::pheatmap(
+  heatmap_data,
+  scale = "none",          # Loadings are already on -1 to 1 scale, usually don't scale rows/cols further
+  cluster_rows = FALSE,    # Keep our named Factors (Control, Caution...) ordered
+  cluster_cols = TRUE,     # Cluster parameters to group similar ones together
+  clustering_distance_cols = "correlation",
+  labels_col = latex_labels, # Apply the LaTeX labels
+  display_numbers = TRUE,  # Show the correlation numbers
+  number_format = "%.2f",  # 2 decimal places
+  fontsize_number = 8,
+  fontsize_col = 10,       # Adjust font size for LaTeX labels
+  main = "Factor Loadings (Oblique Rotation)",
+  treeheight_col = 20      # Height of the dendrogram
+)
+```
+
+
+# 4. Factor Score Correlations
+
+Since we used oblique rotation (`oblimin`), the latent factors are allowed to correlate. The table below shows how the 4 extracted mechanisms relate to each other.
+
+```{r}
+# Get factor correlations (Phi matrix) - Names are already applied in Section 3
+phi_matrix <- efa_fit$Phi
+
+corrplot::corrplot(
+  phi_matrix,
+  method = "color",       # Use color intensity
+  addCoef.col = "black",  # Add number in black
+  type = "lower",         # Show lower triangle
+  tl.col = "black",       # Text label color
+  tl.srt = 45,            # Rotate text labels
+  title = "Correlations among Latent Factors",
+  mar = c(0,0,2,0)
+)
+
+```
+
+# 5. Report Results
+
+```{r}
+# FACTOR ANALYSIS REPORTING SCRIPT
+
+# 1. Prepare Data for Reporting
+# Extract loadings and variance tables
+factor_loadings <- unclass(efa_fit$loadings)
+variance_accounted <- efa_fit$Vaccounted
+
+report_labels <- rownames(factor_loadings)
+
+# 2. Diagnostics (KMO & Bartlett)
+cat("\n=============================================\n")
+cat("      FACTOR ANALYSIS DIAGNOSTICS REPORT     \n")
+cat("=============================================\n\n")
+
+# KMO test
+kmo_result <- psych::KMO(df_scaled)
+cat("--- Kaiser-Meyer-Olkin (KMO) Measure ---\n")
+cat("Overall MSA:        ", round(kmo_result$MSA, 3), "\n")
+cat("Interpretation:     ",
+    ifelse(kmo_result$MSA >= 0.8, "Excellent",
+    ifelse(kmo_result$MSA >= 0.7, "Good",
+    ifelse(kmo_result$MSA >= 0.6, "Mediocre",
+    ifelse(kmo_result$MSA >= 0.5, "Poor", "Unacceptable")))), "\n\n")
+
+# Bartlett's test
+bartlett_result <- psych::cortest.bartlett(df_scaled)
+cat("--- Bartlett's Test of Sphericity ---\n")
+cat("Chi-square:         ", round(bartlett_result$chisq, 2), "\n")
+cat("p-value:            ", format(bartlett_result$p.value, scientific = TRUE), "\n")
+cat("Significance:       ", ifelse(bartlett_result$p.value < 0.05,
+                              "Significant (Data suitable for FA)",
+                              "Not significant (Data may be unsuitable)"), "\n\n")
+
+# 3. Factor Correlations (Crucial for Oblimin)
+cat("=============================================\n")
+cat("      FACTOR CORRELATIONS (PHI MATRIX)       \n")
+cat("=============================================\n")
+
+if (!is.null(efa_fit$Phi)) {
+  cat("Note: Since 'oblimin' rotation was used, factors are allowed to correlate.\n")
+  cat("Moderate correlations (0.3 - 0.5) justify the use of oblique rotation.\n\n")
+
+  # Print the Phi matrix rounded
+  print(round(efa_fit$Phi, 3))
+
+  cat("\nCheck:\n")
+  cat(" * High correlations (> 0.80): Factors may be redundant (multicollinearity).\n")
+  cat(" * Very low correlations (< 0.10): Factors are essentially orthogonal.\n\n")
+} else {
+  cat("Phi matrix is NULL. The rotation method might be orthogonal (e.g., Varimax).\n\n")
+}
+
+# 4. Factor Interpretation (Loadings)
+cat("=============================================\n")
+cat("      FACTOR INTERPRETATION & LOADINGS       \n")
+cat("=============================================\n")
+
+cat("Variance explained by factors:\n")
+print(round(variance_accounted[2, ], 3))
+cat("Cumulative variance explained:", round(sum(variance_accounted[2, ]), 3), "\n\n")
+
+
+for (i in 1:ncol(factor_loadings)) {
+  factor_name <- colnames(factor_loadings)[i]
+
+  # Identify row index for "Proportion Var" (usually 2nd row in Vaccounted)
+  prop_var_row <- which(rownames(variance_accounted) == "Proportion Var")
+  if(length(prop_var_row) == 0) prop_var_row <- 2 # Fallback
+
+  # Get loadings for this factor
+  current_loadings <- factor_loadings[, i]
+  names(current_loadings) <- report_labels # Apply the latex/clean labels
+
+  # Filter for high loadings (> 0.4 or < -0.4)
+  high_loadings_idx <- abs(current_loadings) > 0.4
+  sorted_loadings <- sort(current_loadings[high_loadings_idx], decreasing = TRUE, index.return = FALSE)
+
+  # Print Header
+  cat(sprintf(">> Factor: %s\n", factor_name))
+  cat(sprintf("   Variance Explained: %.1f%%\n", variance_accounted[prop_var_row, i] * 100))
+
+  # Print Variables
+  if (length(sorted_loadings) > 0) {
+    cat("   Top Items:\n")
+    for (j in 1:length(sorted_loadings)) {
+      var_name <- names(sorted_loadings)[j]
+      loading <- sorted_loadings[j]
+      cat(sprintf("   %-40s : %+.3f\n", var_name, loading))
+    }
+  } else {
+    cat("   No high loadings (> 0.4) found for this factor.\n")
+  }
+  cat("\n")
+}
+```
+
+```{r}
+# 6. Extract Factor Scores & Merge
+
+subj_scores <- data.frame(efa_fit$scores)
+colnames(subj_scores) <- latent_labels
+
+
+if(nrow(raw_data) == nrow(subj_scores)) {
+  final_data <- cbind(raw_data, subj_scores)
+  cat("Success! Merged scores. New dimensions:", nrow(final_data), "rows x", ncol(final_data), "columns.\n")
+} else {
+  stop("Error: Row mismatch. The number of rows in raw_data does not match the factor scores.")
+}
+
+output_filename <- file.path(intermediate_dir, "factor_scores.csv")
+
+write.csv(final_data, output_filename, row.names = FALSE)
+```
+
+
+## For retest datasets
+
+```{r}
+raw_data_retest <- read.csv(file.path(intermediate_dir, "subject_indices_retest.csv"), check.names = FALSE)
+
+df_numeric_retest <- raw_data_retest %>%
+  select(-c(24:28)) %>%
+  select(-task_id, -subject_id, -session_id) %>%
+  select_if(is.numeric)
+
+df_scaled_retest <- scale(df_numeric_retest)
+
+N_FACTORS <- 4
+efa_fit_retest <- psych::fa(
+  r = df_scaled_retest,
+  nfactors = N_FACTORS,
+  rotate = "oblimin",  # Allows correlations between factors
+  # n.iter = 1000,       # For bootstrape
+  fm = "ml"            # Maximum Likelihood
+)
+
+latent_labels <- c("Processing Efficiency", "Decision Caution", "Non-decision time", "Inhibitory process")
+colnames(efa_fit_retest$loadings) <- latent_labels
+colnames(efa_fit_retest$Phi) <- rownames(efa_fit_retest$Phi) <- latent_labels
+
+# print(psych::fa.sort(efa_fit$loadings), cutoff = 0.45)
+subj_scores_retest <- data.frame(efa_fit_retest$scores)
+colnames(subj_scores_retest) <- latent_labels
+
+if(nrow(raw_data_retest) == nrow(subj_scores_retest)) {
+  final_data_retest <- cbind(raw_data_retest, subj_scores_retest)
+  cat("Success! Merged scores. New dimensions:", nrow(final_data_retest), "rows x", ncol(final_data_retest), "columns.\n")
+} else {
+  stop("Error: Row mismatch. The number of rows in raw_data does not match the factor scores.")
+}
+output_filename_retest <- file.path(intermediate_dir, "factor_scores_retest.csv")
+write.csv(final_data_retest, output_filename_retest, row.names = FALSE)
+```
+

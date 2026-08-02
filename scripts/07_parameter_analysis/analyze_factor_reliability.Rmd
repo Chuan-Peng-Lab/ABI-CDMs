@@ -1,0 +1,465 @@
+---
+title: "Factor analysis"
+author: "Wanke Pan"
+date: "`r Sys.Date()`"
+output:
+  html_notebook:
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+    code_folding: hide
+    theme: journal
+---
+
+
+```{r setup, include=FALSE}
+# Global chunk options
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  fig.align = "center",
+  # dpi = 300,
+  fig.width = 6,
+  fig.height = 5
+)
+
+# Load necessary packages
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(
+  psych,
+  tidyverse,
+  brms,
+  tidybayes,
+  ggridges,
+  ggdist,
+  svglite,
+  patchwork,
+  cmdstanr
+)
+
+# Set global ggplot theme for publication quality
+theme_set(theme_minimal(base_size = 14) +
+          theme(panel.grid.minor = element_blank(),
+                plot.title = element_text(face = "bold"),
+                axis.text = element_text(color = "black")))
+
+
+# Set seed for reproducibility
+set.seed(20260218)
+repo_root <- normalizePath(file.path(getwd(), "..", ".."), mustWork = TRUE)
+intermediate_dir <- file.path(repo_root, "results", "intermediate")
+supplement_figure_dir <- file.path(repo_root, "figures", "supplement")
+dir.create(supplement_figure_dir, recursive = TRUE, showWarnings = FALSE)
+
+# Source model-fitting and visualization functions
+source("fit_reliability_models.R")
+source("reliability_plot_helpers.R")
+```
+
+## 1. Data Loading and Preprocessing
+
+```{r}
+# 1.1 Cross-task Data
+df_cross <- read.csv(file.path(intermediate_dir, "factor_scores.csv"), check.names = FALSE)
+selected_cross <- df_cross %>%
+  select(subject_id, task_id, author_year, task_name,
+         `Processing Efficiency`, `Decision Caution`,
+         `Non-decision time`, `Inhibitory process`)
+
+df_long <- prep_analysis_data(selected_cross)
+df_long_clean <- preprocess_cognitive_data(df_long)
+df_summary <- calculate_summary_stats(
+  data = df_long,
+  group_vars = c("author_year", "task_name", "Factor_Type"),
+  value_var = "Value"
+) %>%
+  filter(author_year != "lee2025") %>%
+  format_data_labels()
+
+# 1.2 Temporal (Test-Retest) Data
+df_retest <- read.csv(file.path(intermediate_dir, "factor_scores_retest.csv"), check.names = FALSE)
+selected_retest <- df_retest %>%
+  select(subject_id, session_id, task_id, author_year, task_name,
+         `Processing Efficiency`, `Decision Caution`,
+         `Non-decision time`, `Inhibitory process`)
+
+df_long_retest <- prep_analysis_data(
+  selected_retest,
+  id_cols = c("subject_id", "session_id", "task_id", "author_year", "task_name")
+)
+subgroup_iccs <- calculate_subgroup_iccs(df_long_retest)
+```
+
+## 2. Modeling
+
+```{r}
+# If .rds cache exists, it loads directly; otherwise fits and saves.
+
+# 2.1 Cross-Task Consistency Model
+icc_model_fitted <- fit_icc_model(df_long_clean, cores = 4, seed = 20260218)
+icc_draws <- get_posterior_icc(icc_model_fitted)
+icc_draws["ICC"] <- icc_draws$ICC_conditional
+
+# 2.2 Temporal Stability Model (Meta-Regression)
+meta_model <- fit_reliability_meta_model(subgroup_iccs, cores = 4, seed = 20260218)
+```
+
+## 3. Visualization
+
+```{r}
+# Define Colors
+model_colors <- c(
+  "Processing Efficiency" = "#8491B4",
+  "Decision Caution"      = "#3b6cb3",
+  "Non-decision time"     = "#7E6148",
+  "Inhibitory process"    = "#0099B4"
+)
+
+task_colors <- c(
+  "Flanker" = "#b0d97c",
+  "Stroop"  = "#95d8c3",
+  "Simon"   = "#81cef0"
+)
+
+# Generate individual plots
+p_petal_aross_task_and_lab <- plot_petal_grid(
+  summary_data = df_summary,
+  colors = model_colors,
+  save_name = file.path(supplement_figure_dir, "factor_reliability_petal.svg")
+)
+
+p_comparison <- plot_factor_comparison(
+  data = df_summary,
+  colors = task_colors,
+  x_tick_angle = 12
+)
+
+p_icc_ridge <- plot_icc_ridge(
+  icc_data = icc_draws,
+  fill_colors = model_colors,
+  x_title = "Cross-tasks ICC"
+)
+
+p_diff_heatmap <- plot_diff_heatmap(icc_draws)
+
+p_ICC_temporal <- plot_icc_forest(
+  data = subgroup_iccs,
+  color_palette = model_colors
+)
+
+p_temporal_Task_and_Lab <- plot_sd_comparison(meta_model)
+p_temporal_difference   <- plot_sd_difference(meta_model)
+```
+
+```{r, fig.width=10, fig.height=8}
+# Combine plots using patchwork
+plot_top <- (p_comparison | p_icc_ridge) +
+  plot_layout(widths = c(6, 4)) +
+  plot_annotation(tag_levels = 'A') &
+  theme(plot.tag = element_text(size = 14, face = "bold"),
+        plot.margin = margin(10, 10, 10, 10))
+
+ggsave(file.path(supplement_figure_dir, "factor_reliability_top.svg"), plot = plot_top, device = "svg",
+       width = 12, height = 5, units = "in")
+
+plot_bottom <- (p_ICC_temporal | p_temporal_Task_and_Lab) +
+  plot_layout(widths = c(7, 3)) +
+  plot_annotation(tag_levels = 'A') &
+  theme(plot.tag = element_text(size = 14, face = "bold"),
+        plot.margin = margin(10, 10, 10, 10))
+
+ggsave(file.path(supplement_figure_dir, "factor_reliability_bottom.svg"), plot = plot_bottom, device = "svg",
+       width = 12, height = 5, units = "in")
+
+# Show combined figure
+(plot_top / plot_bottom)
+```
+Here are the additional R Markdown chunks to extract and report specific statistical values suitable for the results section of a paper.
+
+## Statistical Reporting
+
+### 1. Cross-Task Consistency (ICC Estimates)
+
+This chunk summarizes the posterior distributions of the Intra-Class Correlation coefficients derived from the first Bayesian multilevel model. It reports the Mean ICC and the 95% Credible Interval (High Density Interval) for each cognitive factor.
+
+```{r}
+# Calculate summary statistics for Cross-Task ICCs
+icc_summary_stats <- icc_draws %>%
+  group_by(Factor_Type) %>%
+  median_qi(ICC, .width = 0.95) %>% # Calculate Median and 95% Quantile Interval
+  mutate(
+    Report_String = sprintf(
+      "%s: Median ICC = %.2f, 95%% CI [%.2f, %.2f]",
+      str_replace_all(Factor_Type, "_", " "),
+      ICC,
+      .lower,
+      .upper
+    )
+  )
+
+# Print clean output for copy-pasting
+cat("--- Cross-Task Consistency Estimates ---\n")
+walk(icc_summary_stats$Report_String, cat, sep = "\n")
+
+# Optional: Return as a clean table
+icc_summary_stats %>%
+  select(Factor_Type, Median_ICC = ICC, Lower_95 = .lower, Upper_95 = .upper) %>%
+  print()
+
+```
+
+### 2. Pairwise Comparisons of Consistency
+
+This chunk quantifies the differences in consistency between factors (e.g., "Is Non-decision time significantly more consistent than Control processes?"). It calculates the mean difference and the Probability of Direction (), which represents the certainty that the difference is non-zero.
+
+```{r}
+icc_comparisons <- calculate_pairwise_stats(icc_draws)
+
+# Print formatting
+cat("--- Pairwise Differences in Consistency ---\n")
+icc_comparisons %>%
+  arrange(desc(abs(Mean_Difference))) %>%
+  mutate(
+    Report = sprintf(
+      "%s: \u0394 = %.2f (pd = %.1f%%)",
+      Comparison, Mean_Difference, Prob_Direction * 100
+    )
+  ) %>%
+  pull(Report) %>%
+  walk(cat, sep = "\n")
+
+```
+
+### 3. Temporal Stability (Test-Retest) Estimates
+
+This chunk extracts the "average" test-retest reliability from the meta-regression model. Since the model used Fisher-Z transformation, we back-transform the results () to report them on the standard ICC scale.
+
+```{r}
+# Extract Fixed Effects (Population-Level Estimates)
+temporal_fixed_effects <- meta_model %>%
+  spread_draws(b_Factor_TypeControlprocess,
+               b_Factor_TypeDecisionCaution,
+               b_Factor_TypeInhibitoryprocess,
+               b_Factor_TypeNonMdecisiontime) %>%
+  pivot_longer(starts_with("b_"), names_to = "Parameter", values_to = "FisherZ_Value") %>%
+  mutate(
+    # Clean names
+    Factor_Type = str_remove(Parameter, "b_Factor_Type"),
+    # Back-transform Fisher Z to ICC
+    ICC_Scale = tanh(FisherZ_Value)
+  ) %>%
+  group_by(Factor_Type) %>%
+  median_qi(ICC_Scale, .width = 0.95)
+
+cat("--- Estimated Temporal Stability (Test-Retest ICC) ---\n")
+temporal_fixed_effects %>%
+  mutate(
+    Report = sprintf(
+      "%s: Estimated ICC = %.2f, 95%% CI [%.2f, %.2f]",
+      Factor_Type, ICC_Scale, .lower, .upper
+    )
+  ) %>%
+  pull(Report) %>%
+  walk(cat, sep = "\n")
+
+```
+
+### 4. Variance Decomposition (Lab vs. Task)
+
+This chunk specifically reports the result of the "Lab vs. Task" variance comparison in the meta-regression. It quantifies how much the specific **Laboratory** (Author) contributes to variability in results compared to the specific **Task** used.
+
+```{r}
+# Extract Random Effect SDs
+variance_sources <- meta_model %>%
+  spread_draws(sd_author_year__Intercept, sd_task_name__Intercept) %>%
+  mutate(
+    diff_sd = sd_author_year__Intercept - sd_task_name__Intercept,
+    ratio = sd_author_year__Intercept / sd_task_name__Intercept
+  )
+
+# Calculate stats
+lab_sd_mean <- mean(variance_sources$sd_author_year__Intercept)
+task_sd_mean <- mean(variance_sources$sd_task_name__Intercept)
+prob_lab_greater <- mean(variance_sources$diff_sd > 0)
+
+cat("--- Sources of Heterogeneity in Reliability ---\n")
+cat(sprintf("Posterior Mean SD (Lab/Author): %.3f\n", lab_sd_mean))
+cat(sprintf("Posterior Mean SD (Task):       %.3f\n", task_sd_mean))
+cat(sprintf("Probability that Lab variability > Task variability: %.1f%%\n", prob_lab_greater * 100))
+
+# Bayes Factor estimate (Savage-Dickey density ratio approximation logic)
+# Note: simple ratio of posteriors here
+cat(sprintf("On average, Lab heterogeneity is %.2fx larger than Task heterogeneity.\n",
+            mean(variance_sources$ratio)))
+
+```
+### 5. Task-Specific Temporal Stability Estimates & Comparisons
+
+```{r}
+# 1. Fit the task-specific meta-regression with fit_task_fixed_meta_model().
+# The fitted model is cached under results/intermediate/.
+task_meta_model <- fit_task_fixed_meta_model(
+  subgroup_iccs,
+  cores = 4,
+  seed = 20260218
+)
+```
+
+```{r}
+# 2. Extract Task Estimates and Back-Transform to ICC scale
+task_draws <- task_meta_model %>%
+  spread_draws(`b_task_name.*`, regex = TRUE) %>%
+  pivot_longer(starts_with("b_task_name"), names_to = "Task", values_to = "FisherZ_Value") %>%
+  mutate(
+    Task = str_remove(Task, "b_task_name"),
+    ICC_Scale = tanh(FisherZ_Value) # Back-transform Fisher Z to standard ICC
+  )
+
+# 3. Summarize Task Estimates & Test against 0
+task_summary <- task_draws %>%
+  group_by(Task) %>%
+  summarise(
+    Median_ICC = median(ICC_Scale),
+    Lower_95 = quantile(ICC_Scale, 0.025),
+    Upper_95 = quantile(ICC_Scale, 0.975),
+    # Probability of Direction: What % of the posterior is > 0?
+    Prob_Greater_Zero = mean(ICC_Scale > 0)
+  ) %>%
+  mutate(
+    Report = sprintf(
+      "%s: Median ICC = %.2f, 95%% CI [%.2f, %.2f], P(ICC > 0) = %.1f%%",
+      str_to_title(Task), Median_ICC, Lower_95, Upper_95, Prob_Greater_Zero * 100
+    )
+  )
+
+walk(task_summary$Report, cat, sep = "\n")
+```
+
+```{r}
+
+# 4. Pairwise Comparisons Between Tasks
+tasks <- unique(task_draws$Task)
+task_combs <- combn(tasks, 2, simplify = FALSE)
+
+task_comparisons <- map_df(task_combs, function(pair) {
+  t1 <- pair[1]
+  t2 <- pair[2]
+
+  # Extract posterior distributions for both tasks
+  p1 <- task_draws %>% filter(Task == t1) %>% pull(ICC_Scale)
+  p2 <- task_draws %>% filter(Task == t2) %>% pull(ICC_Scale)
+
+  # Calculate difference distribution
+  diff_dist <- p1 - p2
+  mean_diff <- mean(diff_dist)
+
+  # Probability of Direction for the difference
+  prob_dir <- max(mean(diff_dist > 0), mean(diff_dist < 0))
+
+  tibble(
+    Comparison = paste0(str_to_title(t1), " vs ", str_to_title(t2)),
+    Diff_Mean = mean_diff,
+    Lower_95 = quantile(diff_dist, 0.025),
+    Upper_95 = quantile(diff_dist, 0.975),
+    Prob_Direction = prob_dir
+  )
+})
+
+# Print formatted comparisons sorted by largest effect
+task_comparisons %>%
+  arrange(desc(abs(Diff_Mean))) %>%
+  mutate(
+    Report = sprintf(
+      "%s: \u0394 ICC = %+.2f, 95%% CI [%+.2f, %+.2f] (pd = %.1f%%)",
+      Comparison, Diff_Mean, Lower_95, Upper_95, Prob_Direction * 100
+    )
+  ) %>%
+  pull(Report) %>%
+  walk(cat, sep = "\n")
+```
+
+```{r}
+# 5. Visualize Task Posteriors and Pairwise Differences
+# Requires: library(ggplot2), library(ggdist), library(patchwork)
+
+# 5.1 Prepare data for difference distributions
+diff_draws <- map_df(task_combs, function(pair) {
+  t1 <- pair[1]
+  t2 <- pair[2]
+
+  p1 <- task_draws %>% filter(Task == t1) %>% pull(ICC_Scale)
+  p2 <- task_draws %>% filter(Task == t2) %>% pull(ICC_Scale)
+
+  # Calculate full posterior difference for ggdist
+  tibble(
+    Comparison = paste0(str_to_title(t1), " - ", str_to_title(t2)),
+    Diff = p1 - p2
+  )
+})
+
+# 5.2 Plot A: Posterior Distributions of Individual Tasks
+library(ggplot2)
+library(ggdist)
+library(patchwork)
+
+p_tasks <- task_draws %>%
+  mutate(Task = str_to_title(Task)) %>%
+  ggplot(aes(x = ICC_Scale, y = Task, fill = Task)) +
+  # stat_halfeye automatically plots the density, point estimate, and interval
+  stat_halfeye(
+    alpha = 0.7,
+    .width = 0.95,
+    point_interval = median_hdi, # Use Highest Density Interval (HDI)
+    justification = -0.1,        # Shift density slightly up
+    height = 0.6
+  ) +
+  scale_fill_viridis_d(guide = "none") +
+  labs(
+    title = "A. Task-Specific Posterior Distributions",
+    x = "ICC Estimate",
+    y = "Task"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold"),
+    axis.text.y = element_text(face = "bold")
+  )
+
+# 5.3 Plot B: Posterior Distributions of Pairwise Differences
+p_diffs <- diff_draws %>%
+  ggplot(aes(x = Diff, y = Comparison, fill = Comparison)) +
+  stat_halfeye(
+    alpha = 0.7,
+    .width = 0.95,
+    point_interval = median_hdi, # Calculate and show 95% HDI
+    justification = -0.1,
+    height = 0.6
+  ) +
+  # Add a reference line at 0 (No difference)
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray50", linewidth = 1) +
+  scale_fill_viridis_d(option = "magma", guide = "none") +
+  labs(
+    title = "B. Pairwise Differences (\u0394 ICC) with 95% HDI",
+    x = "Difference in ICC (\u0394)",
+    y = "Comparison"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold"),
+    axis.text.y = element_text(face = "bold")
+  )
+
+# 5.4 Combine plots using patchwork
+combined_plot <- p_tasks / p_diffs +
+  plot_layout(heights = c(1, 1))
+
+ggsave(file.path(supplement_figure_dir, "factor_reliability_cross_task.svg"), combined_plot, device = svglite, width = 7, height = 7)
+
+# Display the plot
+combined_plot
+```
+
+
+
+

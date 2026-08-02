@@ -20,12 +20,20 @@ build/
 # Checkpoints (download from OSF/Zenodo)
 checkpoints/
 
-# Output
-output/*.png
-output/*.svg
-output/*.pdf
-output/*.csv
-!output/.gitkeep
+# Figures: keep only PNG, ignore vector/pdf/source image formats
+*.svg
+*.pdf
+figures/main/_figure_*
+figures/main/pdf/
+
+# Generated analysis output
+results/intermediate/
+results/tables/
+figures/main/_figure_*
+figures/main/pdf/
+
+# Local code-graph cache
+.gitnexus/
 
 # Data files (track only the raw data under data/; ignore generated data elsewhere)
 *.csv

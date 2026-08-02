@@ -4,7 +4,7 @@ Shared loader for the driftdm_dmc (DMC_v2) model.
 This module centralises the simulator definition, model registration,
 and instantiation so that every analysis script can use:
 
-    from dmc_v2_loader import get_dmc_v2_model
+    from nsbi_module.dmc_v2_loader import get_dmc_v2_model
     m = get_dmc_v2_model()
 
 without duplicating 150+ lines of numba kernels and config dictionaries.
@@ -12,6 +12,8 @@ without duplicating 150+ lines of numba kernels and config dictionaries.
 
 from numba import njit
 import numpy as np
+
+from nsbi_module.project_paths import CHECKPOINTS_DIR
 
 # ── Simulator kernels (identical to 34_ulrich2015_driftdm_dmc.py) ──────────
 
@@ -162,7 +164,7 @@ DRIFTDMC_DMC_CONFIG = {
 
 MODEL_REG_NAME = "driftdm_dmc"
 STORE_KEY_PREFIX = "dmc_v2"
-DEFAULT_CHECKPOINT = "../../checkpoints/driftdm_dmc"
+DEFAULT_CHECKPOINT = CHECKPOINTS_DIR / "driftdm_dmc"
 _PARAM_KEYS = DRIFTDMC_DMC_CONFIG["param_keys"]
 
 
@@ -172,8 +174,7 @@ def register():
 
     Safe to call multiple times — subsequent calls are no-ops.
     """
-    import simulators
-    import default_settings
+    from nsbi_module import default_settings, simulators
 
     if MODEL_REG_NAME in default_settings.MODEL_CONFIG:
         return  # already registered
@@ -185,7 +186,7 @@ def register():
     )
 
     # Create dmc_v2 alias for downstream code
-    from default_settings import PARAMS_KEY_NAME_MAPPING
+    from nsbi_module.default_settings import PARAMS_KEY_NAME_MAPPING
     PARAMS_KEY_NAME_MAPPING[STORE_KEY_PREFIX] = (
         PARAMS_KEY_NAME_MAPPING[MODEL_REG_NAME]
     )
@@ -197,6 +198,6 @@ def get_dmc_v2_model(checkpoint_path=DEFAULT_CHECKPOINT):
 
     Automatically registers the model on first call.
     """
-    from NSBI_CDMs import NSBICDM
+    from nsbi_module.NSBI_CDMs import NSBICDM
     register()
     return NSBICDM(MODEL_REG_NAME, checkpoint_path=checkpoint_path)

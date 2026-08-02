@@ -1,39 +1,59 @@
-# Data Sources
+# Data sources and analysis samples
 
-This file documents the behavioral datasets used in the paper. All data are publicly available from the original publications.
+This release contains nine trial-level CSV files. Eight studies contribute to the cross-sectional analysis, and `clayson2024.csv` is analyzed separately as a test–retest dataset. `erb2023.csv` is excluded from the released analysis and is not distributed in ABI-CDMs.
 
-## Dataset Inventory
+## Raw-file inventory
 
-| Filename | Task(s) | N | Mean trials* | Cross-task design | No. of sessions | Stimulus | Design Note | Year | Citation | License |
-|----------|---------|---|--------------|-------------------|-----------------|----------|-------------|------|----------|---------|
-| `ulrich2015.csv` | Flanker, Simon | 40 | — | — | — | — | — | 2015 | Ulrich, R., Schroeter, H., Leuthold, H., & Birngruber, T. (2015). Automatic and controlled stimulus processing in conflict tasks. *Psychonomic Bulletin & Review*, 22, 1509–1517. | CC-BY |
-| `hedge2018.csv` | Flanker, Simon, Stroop | 48 | — | — | — | — | — | 2018 | Hedge, C., Powell, G., & Sumner, P. (2018). The reliability paradox. *Behavior Research Methods*, 50, 1166–1186. | CC-BY |
-| `reymermet2018.csv` | Stroop | 76 | — | — | — | — | — | 2018 | Rey-Mermet, A., Gade, M., & Oberauer, K. (2018). Should we stop thinking about inhibition? *Perspectives on Psychological Science*, 13(5), 625–650. | — |
-| `whitehead2019.csv` | Flanker, Simon, Stroop | 40 | — | — | — | — | — | 2019 | Whitehead, P. S., Brewer, G. A., & Blais, C. (2019). Reliability of cognitive control measures. *Behavior Research Methods*, 51, 1243–1255. | CC-BY |
-| `eisenberg2019.csv` | Stroop | 59 | — | — | — | — | — | 2019 | Eisenberg, I. W., Bissett, P. G., Enkavi, Z. A., et al. (2019). Uncovering the structure of self-regulation. *Nature Communications*, 10, 4328. | CC-BY |
-| `kucina2023.csv` | Flanker, Simon, Stroop | 52 | — | — | — | — | — | 2023 | Kucina, T., Wells, L., & Heathcote, A. (2023). Individual differences in cognitive control. *Cognitive Psychology*, 143, 101568. | — |
-| `lee2025.csv` | Flanker, Simon | 315 | — | — | — | — | — | 2025 | Lee, T. G., et al. (2025). Large-scale assessment of cognitive control. *Nature Human Behaviour*. | — |
-| `clayson2024.csv` | Flanker | 150 | 464 | No | 4 | 5 arrows | Compared 3 versions of the flanker task; 24 practice trials. Task A: 900 trials, 45% congruent / 55% incongruent, 1600 ms response window. Task B: 330 trials, 50% congruent / 50% incongruent, 2000 ms response window, block-wise feedback. Task C: 400 trials, 50% congruent / 50% incongruent, response window equals ITI duration, block-wise feedback. | 2024 | Clayson, P. E., et al. (2024). Reliability of conflict task performance. *Psychophysiology*. | — |
-| `clayson2025.csv` | Flanker, Simon, Stroop | 606 | — | Yes | 1 | 5 arrows / color words | Multi-site reliability study. Flanker & Stroop response windows limited to 100–700 ms; Stroop includes neutral words and 3 congruency conditions (1/3 each); 20 practice trials. | 2025 | Clayson, P. E., et al. (2025). Multi-site reliability of cognitive control tasks. *Psychophysiology*. | — |
+`Raw N` is the number of unique participant identifiers present in each distributed CSV before the project preprocessing rules are applied.
 
-\* Mean trials per subject per task; "—" indicates not recorded in the original source.
+| File | Study code | Tasks represented | Raw N | Analysis role |
+|---|---:|---|---:|---|
+| `clayson2024.csv` | C24 | Flanker variants | 191 | Test–retest only |
+| `clayson2025.csv` | C25 | Flanker, Stroop | 169 | Cross-sectional |
+| `eisenberg2019.csv` | E19 | Flanker, Simon, Stroop | 523 | Cross-sectional |
+| `hedge2018.csv` | H18 | Flanker, Simon, Stroop | 131 | Cross-sectional |
+| `kucina2023.csv` | K23 | Flanker, Simon, Stroop | 181 | Cross-sectional |
+| `lee2025.csv` | L25 | Flanker, Stroop | 7 | Cross-sectional; first session only |
+| `reymermet2018.csv` | R18 | Flanker, Simon, Stroop | 262 | Cross-sectional |
+| `ulrich2015.csv` | U15 | Flanker, Simon | 16 | Cross-sectional |
+| `whitehead2019.csv` | W19 | Flanker, Simon, Stroop | 178 | Cross-sectional |
 
-### Notes on Clayson datasets
+## Final analysis samples
 
-- **C24 (Clayson et al., 2024)**: In this project only the **Flanker** task is used. The three flanker versions (ffa, ffb, ffc) plus the standard flanker (flk) are treated as **four sessions** for retest/reliability analysis. Subjects must contribute data to more than one session to be included.
-- **C25 (Clayson et al., 2025)**: A cross-task design with Flanker, Simon, and Stroop collected within a single session; used for multi-site reliability.
+The manuscript reports 1,375 participants across the eight cross-sectional studies. Final task-level N values differ from raw N because preprocessing selects eligible tasks and sessions, removes invalid trials, and applies the project quality criteria.
 
-## Data Format
+| Study | Final analysis N by task |
+|---|---|
+| C25 | Flanker 159; Stroop 159 |
+| E19 | Flanker 504; Simon 504; Stroop 504 |
+| H18 | Flanker 53; Simon 102; Stroop 53 |
+| K23 | Flanker 60; Simon 30; Stroop 30 |
+| L25 | Flanker 6; Stroop 6 |
+| R18 | Flanker 237; Simon 237; Stroop 237 |
+| U15 | Flanker 16; Simon 16 |
+| W19 | Flanker 178; Simon 178; Stroop 178 |
 
-Each CSV file contains trial-level data with the following columns (may vary by dataset):
+C24 is not counted in that cross-sectional total. Its four flanker variants/sessions are used for temporal-stability analyses; the final retest analysis uses 150 eligible participants.
 
-- `subject_id`: Participant identifier
-- `task_name`: Task type (flanker, simon, stroop)
-- `congruency`: Trial condition (congruent, incongruent, neutral)
-- `rt`: Reaction time in milliseconds
-- `accuracy`: Response accuracy (1 = correct, 0 = error)
-- `session_id`: Session number (for retest datasets)
+## Preprocessing contract
 
-## Usage
+The canonical entry point is `scripts/01_preprocessing/prepare_datasets.py`. It reads only the nine files listed above and writes:
 
-These data files are used as input to the `scripts/01_preprocessing/21datasets_preprocessing.py` script, which standardizes the format across datasets before model fitting.
+- `results/intermediate/datasets_cross_sectional.h5`;
+- `results/intermediate/datasets_retest.h5`.
+
+Downstream scripts must consume these generated stores rather than read raw CSVs directly.
+
+## Dataset citations
+
+- **Clayson et al. (2024)** — test–retest flanker data (C24).
+- **Clayson et al. (2025)** — cross-task, multi-site conflict-task data (C25).
+- **Eisenberg et al. (2019)** — self-regulation task battery (E19).
+- **Hedge, Powell, and Sumner (2018)** — reliability-paradox dataset (H18).
+- **Kucina et al. (2023)** — individual-differences conflict-task data (K23).
+- **Lee et al. (2025)** — repeated conflict-task assessments (L25).
+- **Rey-Mermet, Gade, and Oberauer (2018)** — inhibition and Stroop data (R18).
+- **Ulrich et al. (2015)** — conflict-task processing data (U15).
+- **Whitehead, Brewer, and Blais (2019)** — cognitive-control reliability data (W19).
+
+Use the accompanying manuscript reference list for complete bibliographic records. This file documents release scope and analysis provenance; it does not replace the original dataset licenses or publications.

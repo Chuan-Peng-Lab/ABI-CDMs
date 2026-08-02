@@ -14,7 +14,7 @@ except ImportError:
 import matplotlib.patches as mpatches
 import re
 
-from .study_labels import format_author_year
+from nsbi_module.study_labels import format_author_year
 
 
 def format_task_name(text):
@@ -2614,7 +2614,7 @@ def plot_distance_comparison(
 
     # Data processing
     df = distance_df.copy()
-    label_map = {'task_name': 'Across Tasks', 'author_year': 'Across Labs'}
+    label_map = {'task_name': 'Across Tasks', 'author_year': 'Across Studies'}
     
     group_col = 'Grouping'
     if group_col in df.columns:

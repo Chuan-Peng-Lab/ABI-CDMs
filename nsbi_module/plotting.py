@@ -968,7 +968,7 @@ def plot_delta_functions(
             for j, task in enumerate(tasks_col):
                 ax = axes[i, j]
 
-                # 👇 修改点 1：将标题和标签的绘制逻辑，移动到 continue 跳出检查之前
+                # Draw titles and labels before checking whether the panel is empty.
                 # Column header: show task name only on the top row
                 if i == 0:
                     ax.set_title(task, fontsize=11, fontweight='bold', pad=6)
@@ -988,15 +988,14 @@ def plot_delta_functions(
 
                 # Empty cell: this study has no data for this task
                 if task not in structured[study]:
-                    # 👇 修改点 2：避免使用 ax.axis('off')，否则会吞掉边缘空白图表的 x/y label。
-                    # 改为仅隐藏刻度和边框线，保留 title 和 labels。
+                    # Hide ticks and spines while preserving titles and axis labels.
                     ax.set_xticks([])
                     ax.set_yticks([])
                     for spine in ax.spines.values():
                         spine.set_visible(False)
                     continue
 
-                # 正常绘制数据
+                # Draw the available panel data.
                 _plot_cell(ax, structured[study][task])
     
     # ── Flat layout: one panel per dataset ───────────────────────────────
@@ -1039,5 +1038,4 @@ def plot_delta_functions(
         print(f"Figure saved to {save_name}")
 
     return fig
-
 
