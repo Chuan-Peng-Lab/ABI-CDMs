@@ -1,0 +1,52 @@
+{
+  "title": "ABI-CDMs: Amortized Bayesian Inference of Conflict Diffusion Models",
+  "upload_type": "software",
+  "description": "ABI-CDMs provides the release-ready pipeline for amortized Bayesian inference (neural simulation-based inference) of four conflict diffusion models—the Diffusion Decision Model (DDM), the Diffusion Model for Conflict (DMC), the Shrinking Spotlight (SSP), and the Dual-Stage Two-Phase (DSTP) model—along with the constrained and dRiftDM-aligned specifications reported in the supplementary material. It accompanies the manuscript 'No Single Model Fits All: Conflict Decision-Making Models Vary More Across Studies Than Across Tasks.' The repository includes preprocessing, training, fitting, validation, model-comparison, posterior-predictive-check, factor-analysis, and robustness scripts, plus a reusable inference library (nsbi_module) and the nine retained raw datasets. Pretrained estimator checkpoints are archived separately (Zenodo: 10.5281/zenodo.21623907).",
+  "creators": [
+    {
+      "name": "Pan, Wanke",
+      "affiliation": "School of Psychology, Nanjing Normal University"
+    },
+    {
+      "name": "Wang, Jiashun",
+      "affiliation": "Department of Psychology, Ludwig-Maximilians-Universitaet Muenchen"
+    },
+    {
+      "name": "Oberauer, Klaus",
+      "affiliation": "Department of Psychology, University of Zurich"
+    },
+    {
+      "name": "Hu, Chuan-Peng",
+      "affiliation": "School of Psychology, Nanjing Normal University"
+    }
+  ],
+  "access_right": "open",
+  "license": "AGPL-3.0",
+  "keywords": [
+    "cognitive modeling",
+    "conflict tasks",
+    "diffusion decision model",
+    "amortized Bayesian inference",
+    "neural simulation-based inference",
+    "computational psychiatry",
+    "model comparison",
+    "Flanker task",
+    "Simon task",
+    "Stroop task"
+  ],
+  "language": "eng",
+  "related_identifiers": [
+    {
+      "scheme": "url",
+      "identifier": "https://github.com/Chuan-Peng-Lab/ABI-CDMs",
+      "relation": "isSupplementTo",
+      "resource_type": "software"
+    },
+    {
+      "scheme": "doi",
+      "identifier": "10.5281/zenodo.21623907",
+      "relation": "isSupplementedBy",
+      "resource_type": "dataset"
+    }
+  ]
+}
